@@ -1431,8 +1431,8 @@
                 const sortedTransactions = [...accountTransactions].sort((a, b) => {
                     return new Date(a.date) - new Date(b.date);
                 });
-                // Start with the initial balance of the debtor
-                let cumulativeBalance = parseFloat(account.balance);
+                // Start cumulative balance from 0 (as requested)
+                let cumulativeBalance = 0;
                 sortedTransactions.forEach(transaction => {
                     const row = document.createElement('tr');
                     // Calculate the cumulative balance after this transaction
@@ -1448,7 +1448,7 @@
                         <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
                             ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل
                         </td>
-                        <td>${formatNumber(cumulativeBalance)} د.ل</td> <!-- Updated to show cumulative balance -->
+                        <td>${formatNumber(cumulativeBalance)} د.ل</td> <!-- Updated to show cumulative balance starting from 0 -->
                     `;
                     statementTransactions.appendChild(row);
                 });
@@ -1880,8 +1880,8 @@
             const sortedTransactions = [...accountTransactions].sort((a, b) => {
                 return new Date(a.date) - new Date(b.date);
             });
-            // Start with the initial balance of the debtor
-            let cumulativeBalance = parseFloat(currentStatementAccount.balance);
+            // Start cumulative balance from 0 (as requested)
+            let cumulativeBalance = 0;
             printWindow.document.write(`
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -1946,7 +1946,7 @@
                                 <th>النوع</th>
                                 <th>الوصف</th>
                                 <th>المبلغ</th>
-                                <th>الرصيد الحالي</th> <!-- تم التغيير هنا -->
+                                <th>الرصيد الحالي</th> <!-- Updated to show cumulative balance starting from 0 -->
                             </tr>
                         </thead>
                         <tbody>
@@ -1963,7 +1963,7 @@
                                         <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
                                         <td>${transaction.description || 'بدون وصف'}</td>
                                         <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
-                                        <td>${formatNumber(cumulativeBalance)} د.ل</td> <!-- Updated to show cumulative balance -->
+                                        <td>${formatNumber(cumulativeBalance)} د.ل</td> <!-- Updated to show cumulative balance starting from 0 -->
                                     </tr>
                                 `;
                             }).join('')}
