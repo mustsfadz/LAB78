@@ -233,6 +233,7 @@
                 background: white;
                 font-size: 12pt;
                 line-height: 1.4;
+                direction: rtl;
             }
             
             .no-print {
@@ -244,7 +245,7 @@
             }
             
             .main-header, .balance-card, .transaction-form, .accounts-form, 
-            .filter-section, .nav-tabs, .action-buttons, .modal {
+            .filter-section, .nav-tabs, .action-buttons, .modal, .refresh-btn {
                 display: none !important;
             }
             
@@ -259,6 +260,7 @@
                 margin-bottom: 0;
                 font-size: 10pt;
                 width: 100% !important;
+                border-collapse: collapse;
             }
             
             .table thead {
@@ -266,6 +268,11 @@
                 color: white !important;
                 -webkit-print-color-adjust: exact;
                 print-color-adjust: exact;
+            }
+            
+            .table th, .table td {
+                border: 1px solid #ddd !important;
+                padding: 8px !important;
             }
             
             .deposit, .expense {
@@ -300,6 +307,79 @@
                 font-size: 10pt;
                 color: #666;
                 page-break-before: avoid;
+            }
+            
+            /* Receipt Form Print Styles */
+            .receipt-form {
+                border: 2px solid #2c3e50;
+                border-radius: 10px;
+                padding: 30px;
+                max-width: 600px;
+                margin: 0 auto;
+                background: white;
+                box-shadow: none;
+                page-break-inside: avoid;
+            }
+            
+            .receipt-header {
+                text-align: center;
+                border-bottom: 2px solid #2c3e50;
+                padding-bottom: 20px;
+                margin-bottom: 30px;
+            }
+            
+            .receipt-title {
+                font-size: 24px;
+                font-weight: bold;
+                color: #2c3e50;
+                margin-bottom: 10px;
+            }
+            
+            .receipt-details {
+                margin-bottom: 30px;
+            }
+            
+            .receipt-row {
+                display: flex;
+                justify-content: space-between;
+                margin-bottom: 10px;
+                padding: 5px 0;
+                border-bottom: 1px dashed #ddd;
+            }
+            
+            .receipt-signature {
+                margin-top: 50px;
+                display: flex;
+                justify-content: space-between;
+            }
+            
+            .signature-box {
+                width: 200px;
+                text-align: center;
+            }
+            
+            .signature-line {
+                border-bottom: 1px solid #333;
+                margin: 30px 0 10px;
+                height: 40px;
+            }
+            
+            .receipt-date {
+                text-align: left;
+                margin-top: 20px;
+                font-size: 14px;
+                color: #666;
+            }
+            
+            .receipt-amount {
+                font-size: 28px;
+                font-weight: bold;
+                color: #e74c3c;
+                text-align: center;
+                margin: 20px 0;
+                padding: 15px;
+                background: #f8f9fa;
+                border-radius: 5px;
             }
         }
         
@@ -459,13 +539,6 @@
             gap: 10px;
             margin-bottom: 20px;
             flex-wrap: wrap;
-        }
-        
-        @media print {
-            .receipt-form {
-                box-shadow: none;
-                border: 1px solid #333;
-            }
         }
         
         /* Format numbers with thousands separators */
@@ -777,7 +850,7 @@
     </button>
 
     <!-- Print Preview Modal -->
-    <div class="modal fade" id="printPreviewModal" tabindex="--1">
+    <div class="modal fade" id="printPreviewModal" tabindex="-1">
         <div class="modal-dialog modal-xl">
             <div class="modal-content">
                 <div class="modal-header">
@@ -895,7 +968,17 @@
 
         // Format number with thousands separators
         function formatNumber(number) {
-            return new Intl.NumberFormat('ar-LY').format(number);
+            // Create a custom formatter to ensure correct formatting
+            const formatter = new Intl.NumberFormat('en-US', {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            });
+            
+            // Format the number and replace commas with Arabic comma if needed
+            let formatted = formatter.format(number);
+            
+            // For Arabic display, we'll keep the standard comma format
+            return formatted;
         }
 
         // Format date for display
@@ -928,8 +1011,8 @@
                 const { data: transactionsData, error: transactionsError } = await supabase
                     .from('transactions')
                     .select('*')
-                    .order('date', { ascending: false })
-                    .order('created_at', { ascending: false });
+                    .order('date', { ascending: true })
+                    .order('created_at', { ascending: true });
 
                 if (transactionsError) {
                     showNotification('فشل تحميل الحركات المالية: ' + transactionsError.message, 'danger');
@@ -970,7 +1053,7 @@
 
         // Update display
         function updateDisplay() {
-            currentBalanceEl.textContent = `${formatNumber(balance.toFixed(2))} د.ل`;
+            currentBalanceEl.textContent = `${formatNumber(balance)} د.ل`;
             
             const totalDeposits = transactions
                 .filter(t => t.type === 'deposit')
@@ -980,8 +1063,8 @@
                 .filter(t => t.type === 'expense')
                 .reduce((sum, t) => sum + parseFloat(t.amount), 0);
                 
-            totalDepositsEl.textContent = `${formatNumber(totalDeposits.toFixed(2))} د.ل`;
-            totalExpensesEl.textContent = `${formatNumber(totalExpenses.toFixed(2))} د.ل`;
+            totalDepositsEl.textContent = `${formatNumber(totalDeposits)} د.ل`;
+            totalExpensesEl.textContent = `${formatNumber(totalExpenses)} د.ل`;
             transactionCountEl.textContent = formatNumber(transactions.length);
         }
 
@@ -1016,7 +1099,7 @@
             
             // Calculate balance after this transaction
             const lastBalance = transactions.length > 0 ? 
-                parseFloat(transactions[0].balance_after) : 0;
+                parseFloat(transactions[transactions.length - 1].balance_after) : 0;
             const balanceAfter = type === 'deposit' ? 
                 lastBalance + amount : lastBalance - amount;
             
@@ -1044,7 +1127,7 @@
                 
                 // Update local data
                 const newTransaction = data[0];
-                transactions.unshift(newTransaction);
+                transactions.push(newTransaction);
                 filteredTransactions = [...transactions];
                 
                 if (type === 'deposit') {
@@ -1150,7 +1233,12 @@
             
             noTransactionsEl.style.display = 'none';
             
-            filteredTransactions.forEach(transaction => {
+            // Sort transactions by date (oldest first)
+            const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+                return new Date(a.date) - new Date(b.date);
+            });
+            
+            sortedTransactions.forEach(transaction => {
                 const row = document.createElement('tr');
                 
                 // Find debtor name
@@ -1172,9 +1260,9 @@
                     <td>${transaction.description || 'بدون وصف'}</td>
                     <td>${debtorName}</td>
                     <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
-                        ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل
+                        ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل
                     </td>
-                    <td>${formatNumber(parseFloat(transaction.balance_after).toFixed(2))} د.ل</td>
+                    <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
                     <td class="no-print">
                         <div class="action-buttons">
                             ${transaction.type === 'expense' && transaction.debtor_id ? 
@@ -1213,7 +1301,7 @@
                     <td>${account.name}</td>
                     <td>${account.phone || 'غير متوفر'}</td>
                     <td class="${parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative'}">
-                        ${formatNumber(parseFloat(account.balance).toFixed(2))} د.ل
+                        ${formatNumber(parseFloat(account.balance))} د.ل
                     </td>
                     <td>${transactionCount}</td>
                     <td class="no-print">
@@ -1345,15 +1433,22 @@
 
         // Delete transaction
         async function deleteTransaction(transactionId) {
-            if (!confirm('هل أنت متأكد أنك تريد حذف هذه الحركة؟')) {
+            const transaction = transactions.find(t => t.id === transactionId);
+            if (!transaction) return;
+            
+            let debtorName = 'غير محدد';
+            if (transaction.debtor_id) {
+                const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
+                debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
+            }
+            
+            const confirmMessage = `هل أنت متأكد أنك تريد حذف هذه الحركة؟\n\nالتفاصيل:\n- التاريخ: ${formatDate(transaction.date)}\n- النوع: ${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}\n- المبلغ: ${formatNumber(parseFloat(transaction.amount))} د.ل\n- الوصف: ${transaction.description || 'بدون وصف'}\n- الدائن: ${debtorName}\n\nهذا الإجراء لا يمكن التراجع عنه.`;
+            
+            if (!confirm(confirmMessage)) {
                 return;
             }
 
             try {
-                // Get transaction details before deletion
-                const transaction = transactions.find(t => t.id === transactionId);
-                if (!transaction) return;
-
                 // Delete transaction from Supabase
                 const { error } = await supabase
                     .from('transactions')
@@ -1405,7 +1500,16 @@
 
         // Delete account
         async function deleteAccount(accountId) {
-            if (!confirm('هل أنت متأكد أنك تريد حذف هذا الحساب؟ سيتم حذف جميع الحركات المرتبطة به.')) {
+            const account = accounts.find(acc => acc.id === accountId);
+            if (!account) return;
+            
+            // Count transactions for this account
+            const accountTransactions = transactions.filter(t => t.debtor_id === accountId);
+            const transactionCount = accountTransactions.length;
+            
+            const confirmMessage = `هل أنت متأكد أنك تريد حذف هذا الحساب؟\n\nتفاصيل الحساب:\n- الاسم: ${account.name}\n- رقم الهاتف: ${account.phone || 'غير متوفر'}\n- الرصيد: ${formatNumber(parseFloat(account.balance))} د.ل\n- عدد الحركات المرتبطة: ${transactionCount}\n\nملاحظة: سيتم حذف جميع الحركات المرتبطة بهذا الحساب أيضاً.\n\nهذا الإجراء لا يمكن التراجع عنه.`;
+            
+            if (!confirm(confirmMessage)) {
                 return;
             }
 
@@ -1433,11 +1537,9 @@
                 }
 
                 // Update local data
-                const account = accounts.find(acc => acc.id === accountId);
                 accounts = accounts.filter(acc => acc.id !== accountId);
                 
                 // Remove transactions and update balance
-                const accountTransactions = transactions.filter(t => t.debtor_id === accountId);
                 transactions = transactions.filter(t => t.debtor_id !== accountId);
                 filteredTransactions = filteredTransactions.filter(t => t.debtor_id !== accountId);
                 
@@ -1468,7 +1570,7 @@
             document.getElementById('statement-debtor-phone').textContent = account.phone || 'غير متوفر';
             
             const balanceEl = document.getElementById('statement-balance');
-            balanceEl.textContent = `${formatNumber(parseFloat(account.balance).toFixed(2))} د.ل`;
+            balanceEl.textContent = `${formatNumber(parseFloat(account.balance))} د.ل`;
             balanceEl.className = parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative';
 
             // Get transactions for this account
@@ -1479,9 +1581,9 @@
             if (accountTransactions.length === 0) {
                 statementTransactions.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد حركات لهذا الدائن</td></tr>';
             } else {
-                // Sort transactions by date (newest first)
+                // Sort transactions by date (oldest first)
                 const sortedTransactions = [...accountTransactions].sort((a, b) => {
-                    return new Date(b.date) - new Date(a.date);
+                    return new Date(a.date) - new Date(b.date);
                 });
                 
                 sortedTransactions.forEach(transaction => {
@@ -1491,9 +1593,9 @@
                         <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
                         <td>${transaction.description || 'بدون وصف'}</td>
                         <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
-                            ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل
+                            ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل
                         </td>
-                        <td>${formatNumber(parseFloat(transaction.balance_after).toFixed(2))} د.ل</td>
+                        <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
                     `;
                     statementTransactions.appendChild(row);
                 });
@@ -1534,7 +1636,7 @@
                             <div>${transaction.description || 'بدون سبب'}</div>
                         </div>
                         <div class="receipt-amount">
-                            المبلغ: ${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل
+                            المبلغ: ${formatNumber(parseFloat(transaction.amount))} د.ل
                         </div>
                         <div class="receipt-row">
                             <div>بالحروف:</div>
@@ -1567,12 +1669,11 @@
 
         // Convert number to words (Arabic)
         function numberToWords(num) {
-            // Simplified implementation for Arabic numbers to words
-            // This is a basic implementation and might need enhancement for full coverage
             const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
             const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
             const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
             const hundreds = ['', 'مئة', 'مئتان', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
+            const thousands = ['', 'ألف', 'ألفان', 'ثلاثة آلاف', 'أربعة آلاف', 'خمسة آلاف', 'ستة آلاف', 'سبعة آلاف', 'ثمانية آلاف', 'تسعة آلاف'];
             
             if (num === 0) return 'صفر';
             
@@ -1580,30 +1681,44 @@
             
             // Handle thousands
             if (num >= 1000) {
-                const thousands = Math.floor(num / 1000);
-                result += numberToWords(thousands) + ' ألف ';
+                const thousandsPart = Math.floor(num / 1000);
+                if (thousandsPart <= 9) {
+                    result += thousands[thousandsPart];
+                } else {
+                    result += numberToWords(thousandsPart) + ' ألف';
+                }
                 num %= 1000;
+                
+                // Add "و" if there are remaining parts
+                if (num > 0) {
+                    result += ' و ';
+                }
             }
             
             // Handle hundreds
             if (num >= 100) {
-                result += hundreds[Math.floor(num / 100)] + ' ';
+                result += hundreds[Math.floor(num / 100)];
                 num %= 100;
+                
+                // Add "و" if there are remaining parts
+                if (num > 0) {
+                    result += ' و ';
+                }
             }
             
             // Handle tens and ones
             if (num > 0) {
                 if (num < 10) {
-                    result += ones[num] + ' ';
+                    result += ones[num];
                 } else if (num >= 11 && num <= 19) {
-                    result += teens[num - 10] + ' ';
+                    result += teens[num - 10];
                 } else {
                     const ten = Math.floor(num / 10);
                     const one = num % 10;
                     if (one > 0) {
                         result += ones[one] + ' و ';
                     }
-                    result += tens[ten] + ' ';
+                    result += tens[ten];
                 }
             }
             
@@ -1612,11 +1727,128 @@
 
         // Print functions
         function printTransactions() {
-            window.print();
+            const printWindow = window.open('', '_blank');
+            const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+                return new Date(a.date) - new Date(b.date);
+            });
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>سجل الحركات المالية</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            margin: 20px;
+                        }
+                        .print-header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            border-bottom: 2px solid #2c3e50;
+                            padding-bottom: 20px;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #ddd;
+                            padding: 8px;
+                            text-align: right;
+                        }
+                        th {
+                            background-color: #2c3e50;
+                            color: white;
+                        }
+                        .print-summary {
+                            margin-top: 30px;
+                            padding: 15px;
+                            border: 1px solid #ddd;
+                        }
+                        .print-footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #ddd;
+                            font-size: 12px;
+                            color: #666;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <h1>سجل الحركات المالية</h1>
+                        <p>تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>النوع</th>
+                                <th>الوصف</th>
+                                <th>الدائن</th>
+                                <th>المبلغ</th>
+                                <th>الرصيد بعد الحركة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedTransactions.map(transaction => {
+                                let debtorName = 'غير محدد';
+                                if (transaction.debtor_id) {
+                                    const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
+                                    debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
+                                } else if (transaction.debtor_name) {
+                                    debtorName = transaction.debtor_name;
+                                }
+                                
+                                return `
+                                    <tr>
+                                        <td>${formatDate(transaction.date)}</td>
+                                        <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                        <td>${transaction.description || 'بدون وصف'}</td>
+                                        <td>${debtorName}</td>
+                                        <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                        <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div class="print-summary">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+                            <div><strong>الرصيد الحالي:</strong> ${currentBalanceEl.textContent}</div>
+                            <div><strong>إجمالي الإيداعات:</strong> ${totalDepositsEl.textContent}</div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <div><strong>إجمالي المصروفات:</strong> ${totalExpensesEl.textContent}</div>
+                            <div><strong>عدد الحركات:</strong> ${transactionCountEl.textContent}</div>
+                        </div>
+                    </div>
+                    
+                    <div class="print-footer">
+                        نظام إدارة الرصيد - جميع الحقوق محفوظة
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            printWindow.print();
         }
 
         function printPreview() {
             const printContent = document.getElementById('printPreviewContent');
+            
+            // Sort transactions by date (oldest first)
+            const sortedTransactions = [...filteredTransactions].sort((a, b) => {
+                return new Date(a.date) - new Date(b.date);
+            });
+            
             printContent.innerHTML = `
                 <div class="print-header">
                     <h2>سجل الحركات المالية</h2>
@@ -1635,7 +1867,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        ${filteredTransactions.map(transaction => {
+                        ${sortedTransactions.map(transaction => {
                             let debtorName = 'غير محدد';
                             if (transaction.debtor_id) {
                                 const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
@@ -1650,8 +1882,8 @@
                                     <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
                                     <td>${transaction.description || 'بدون وصف'}</td>
                                     <td>${debtorName}</td>
-                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل</td>
-                                    <td>${formatNumber(parseFloat(transaction.balance_after).toFixed(2))} د.ل</td>
+                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                    <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
                                 </tr>
                             `;
                         }).join('')}
@@ -1685,102 +1917,391 @@
         }
 
         function printFromPreview() {
-            window.print();
+            printTransactions();
         }
 
         function printSummary() {
-            const printContent = document.getElementById('printPreviewContent');
-            printContent.innerHTML = `
-                <div class="print-header">
-                    <h2>ملخص الحساب</h2>
-                    <p>تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}</p>
-                </div>
-                
-                <div class="print-summary">
-                    <div class="row">
-                        <div class="col-md-3">
-                            <strong>الرصيد الحالي:</strong> ${currentBalanceEl.textContent}
+            const printWindow = window.open('', '_blank');
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>ملخص الحساب</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            margin: 20px;
+                        }
+                        .print-header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            border-bottom: 2px solid #2c3e50;
+                            padding-bottom: 20px;
+                        }
+                        .summary-box {
+                            display: flex;
+                            justify-content: space-around;
+                            margin-bottom: 30px;
+                        }
+                        .summary-item {
+                            text-align: center;
+                            padding: 15px;
+                            border: 1px solid #ddd;
+                            border-radius: 5px;
+                            width: 200px;
+                        }
+                        .summary-value {
+                            font-size: 24px;
+                            font-weight: bold;
+                            margin: 10px 0;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #ddd;
+                            padding: 8px;
+                            text-align: right;
+                        }
+                        th {
+                            background-color: #2c3e50;
+                            color: white;
+                        }
+                        .print-footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #ddd;
+                            font-size: 12px;
+                            color: #666;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <h1>ملخص الحساب</h1>
+                        <p>تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}</p>
+                    </div>
+                    
+                    <div class="summary-box">
+                        <div class="summary-item">
+                            <div>الرصيد الحالي</div>
+                            <div class="summary-value">${currentBalanceEl.textContent}</div>
                         </div>
-                        <div class="col-md-3">
-                            <strong>إجمالي الإيداعات:</strong> ${totalDepositsEl.textContent}
+                        <div class="summary-item">
+                            <div>إجمالي الإيداعات</div>
+                            <div class="summary-value">${totalDepositsEl.textContent}</div>
                         </div>
-                        <div class="col-md-3">
-                            <strong>إجمالي المصروفات:</strong> ${totalExpensesEl.textContent}
+                        <div class="summary-item">
+                            <div>إجمالي المصروفات</div>
+                            <div class="summary-value">${totalExpensesEl.textContent}</div>
                         </div>
-                        <div class="col-md-3">
-                            <strong>عدد الحركات:</strong> ${transactionCountEl.textContent}
+                        <div class="summary-item">
+                            <div>عدد الحركات</div>
+                            <div class="summary-value">${transactionCountEl.textContent}</div>
                         </div>
                     </div>
-                </div>
-                
-                <h3 class="mt-4">آخر 10 حركات</h3>
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>التاريخ</th>
-                            <th>النوع</th>
-                            <th>الوصف</th>
-                            <th>المبلغ</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${transactions.slice(0, 10).map(transaction => `
+                    
+                    <h3>آخر 10 حركات</h3>
+                    <table>
+                        <thead>
                             <tr>
-                                <td>${formatDate(transaction.date)}</td>
-                                <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                                <td>${transaction.description || 'بدون وصف'}</td>
-                                <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل</td>
+                                <th>التاريخ</th>
+                                <th>النوع</th>
+                                <th>الوصف</th>
+                                <th>المبلغ</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                
-                <h3 class="mt-4">ملخص الدائنين</h3>
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>اسم الدائن</th>
-                            <th>الرصيد</th>
-                            <th>عدد الحركات</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${accounts.map(account => `
+                        </thead>
+                        <tbody>
+                            ${transactions.slice(-10).map(transaction => `
+                                <tr>
+                                    <td>${formatDate(transaction.date)}</td>
+                                    <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                    <td>${transaction.description || 'بدون وصف'}</td>
+                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <h3>ملخص الدائنين</h3>
+                    <table>
+                        <thead>
                             <tr>
-                                <td>${account.name}</td>
-                                <td class="${parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative'}">
-                                    ${formatNumber(parseFloat(account.balance).toFixed(2))} د.ل
-                                </td>
-                                <td>${transactions.filter(t => t.debtor_id === account.id).length}</td>
+                                <th>اسم الدائن</th>
+                                <th>الرصيد</th>
+                                <th>عدد الحركات</th>
                             </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-                
-                <div class="print-footer">
-                    نظام إدارة الرصيد - جميع الحقوق محفوظة
-                </div>
-            `;
+                        </thead>
+                        <tbody>
+                            ${accounts.map(account => `
+                                <tr>
+                                    <td>${account.name}</td>
+                                    <td>${formatNumber(parseFloat(account.balance))} د.ل</td>
+                                    <td>${transactions.filter(t => t.debtor_id === account.id).length}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div class="print-footer">
+                        نظام إدارة الرصيد - جميع الحقوق محفوظة
+                    </div>
+                </body>
+                </html>
+            `);
             
-            const modal = new bootstrap.Modal(document.getElementById('printPreviewModal'));
-            modal.show();
+            printWindow.document.close();
+            printWindow.print();
         }
 
         function printCurrentView() {
-            printPreview();
+            printTransactions();
         }
 
         function printAccountStatement() {
-            window.print();
+            const printWindow = window.open('', '_blank');
+            const accountTransactions = transactions.filter(t => t.debtor_id === currentStatementAccount.id);
+            const sortedTransactions = [...accountTransactions].sort((a, b) => {
+                return new Date(a.date) - new Date(b.date);
+            });
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>كشف حساب الدائن</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            margin: 20px;
+                        }
+                        .print-header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            border-bottom: 2px solid #2c3e50;
+                            padding-bottom: 20px;
+                        }
+                        .debtor-info {
+                            margin-bottom: 30px;
+                            padding: 15px;
+                            border: 1px solid #ddd;
+                            border-radius: 5px;
+                        }
+                        table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin-bottom: 20px;
+                        }
+                        th, td {
+                            border: 1px solid #ddd;
+                            padding: 8px;
+                            text-align: right;
+                        }
+                        th {
+                            background-color: #2c3e50;
+                            color: white;
+                        }
+                        .print-footer {
+                            text-align: center;
+                            margin-top: 30px;
+                            padding-top: 15px;
+                            border-top: 1px solid #ddd;
+                            font-size: 12px;
+                            color: #666;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="print-header">
+                        <h1>كشف حساب الدائن</h1>
+                        <p>تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}</p>
+                    </div>
+                    
+                    <div class="debtor-info">
+                        <h3>${currentStatementAccount.name}</h3>
+                        <p><strong>رقم الهاتف:</strong> ${currentStatementAccount.phone || 'غير متوفر'}</p>
+                        <p><strong>الرصيد الحالي:</strong> ${formatNumber(parseFloat(currentStatementAccount.balance))} د.ل</p>
+                    </div>
+                    
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>التاريخ</th>
+                                <th>النوع</th>
+                                <th>الوصف</th>
+                                <th>المبلغ</th>
+                                <th>الرصيد بعد الحركة</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${sortedTransactions.map(transaction => `
+                                <tr>
+                                    <td>${formatDate(transaction.date)}</td>
+                                    <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                    <td>${transaction.description || 'بدون وصف'}</td>
+                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                    <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    
+                    <div class="print-footer">
+                        نظام إدارة الرصيد - جميع الحقوق محفوظة
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            printWindow.print();
         }
 
         function printReceiptForm() {
-            window.print();
+            const printWindow = window.open('', '_blank');
+            
+            // Find debtor
+            let debtorName = 'غير محدد';
+            if (currentReceiptTransaction.debtor_id) {
+                const debtor = accounts.find(acc => acc.id === currentReceiptTransaction.debtor_id);
+                debtorName = debtor ? debtor.name : currentReceiptTransaction.debtor_name || 'غير محدد';
+            } else if (currentReceiptTransaction.debtor_name) {
+                debtorName = currentReceiptTransaction.debtor_name;
+            }
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="ar" dir="rtl">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>نموذج استلام السلفة</title>
+                    <style>
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            margin: 20px;
+                        }
+                        .receipt-form {
+                            border: 2px solid #2c3e50;
+                            border-radius: 10px;
+                            padding: 30px;
+                            max-width: 600px;
+                            margin: 0 auto;
+                        }
+                        .receipt-header {
+                            text-align: center;
+                            border-bottom: 2px solid #2c3e50;
+                            padding-bottom: 20px;
+                            margin-bottom: 30px;
+                        }
+                        .receipt-title {
+                            font-size: 24px;
+                            font-weight: bold;
+                            color: #2c3e50;
+                            margin-bottom: 10px;
+                        }
+                        .receipt-details {
+                            margin-bottom: 30px;
+                        }
+                        .receipt-row {
+                            display: flex;
+                            justify-content: space-between;
+                            margin-bottom: 10px;
+                            padding: 5px 0;
+                            border-bottom: 1px dashed #ddd;
+                        }
+                        .receipt-signature {
+                            margin-top: 50px;
+                            display: flex;
+                            justify-content: space-between;
+                        }
+                        .signature-box {
+                            width: 200px;
+                            text-align: center;
+                        }
+                        .signature-line {
+                            border-bottom: 1px solid #333;
+                            margin: 30px 0 10px;
+                            height: 40px;
+                        }
+                        .receipt-date {
+                            text-align: left;
+                            margin-top: 20px;
+                            font-size: 14px;
+                            color: #666;
+                        }
+                        .receipt-amount {
+                            font-size: 28px;
+                            font-weight: bold;
+                            color: #e74c3c;
+                            text-align: center;
+                            margin: 20px 0;
+                            padding: 15px;
+                            background: #f8f9fa;
+                            border-radius: 5px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="receipt-form">
+                        <div class="receipt-header">
+                            <div class="receipt-title">نموذج استلام سلفة</div>
+                            <div>تاريخ الاستلام: ${formatDate(currentReceiptTransaction.date)}</div>
+                        </div>
+                        
+                        <div class="receipt-details">
+                            <div class="receipt-row">
+                                <div>اسم المستلم:</div>
+                                <div>${debtorName}</div>
+                            </div>
+                            <div class="receipt-row">
+                                <div>سبب الصرف:</div>
+                                <div>${currentReceiptTransaction.description || 'بدون سبب'}</div>
+                            </div>
+                            <div class="receipt-amount">
+                                المبلغ: ${formatNumber(parseFloat(currentReceiptTransaction.amount))} د.ل
+                            </div>
+                            <div class="receipt-row">
+                                <div>بالحروف:</div>
+                                <div>${numberToWords(parseFloat(currentReceiptTransaction.amount))} دينار ليبي فقط</div>
+                            </div>
+                        </div>
+                        
+                        <div class="receipt-signature">
+                            <div class="signature-box">
+                                <div>توقيع المستلم</div>
+                                <div class="signature-line"></div>
+                                <div>${debtorName}</div>
+                            </div>
+                            <div class="signature-box">
+                                <div>توقيع الصراف</div>
+                                <div class="signature-line"></div>
+                                <div>...................</div>
+                            </div>
+                        </div>
+                        
+                        <div class="receipt-date">
+                            تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            printWindow.print();
         }
 
         // Clear all data
         async function clearAllData() {
-            if (!confirm('هل أنت متأكد أنك تريد حذف جميع البيانات؟ هذا الإجراء لا يمكن التراجع عنه.')) {
+            const confirmMessage = `هل أنت متأكد أنك تريد حذف جميع البيانات؟\n\nهذا الإجراء سيقوم بحذف:\n- جميع الحركات المالية (${transactions.length} حركة)\n- جميع حسابات الدائنين (${accounts.length} حساب)\n- الرصيد الحالي (${formatNumber(balance)} د.ل)\n\nملاحظة هامة: هذا الإجراء لا يمكن التراجع عنه وستفقد جميع بياناتك بشكل دائم.`;
+            
+            if (!confirm(confirmMessage)) {
                 return;
             }
 
