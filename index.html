@@ -206,11 +206,15 @@
         }
         
         .account-balance.positive {
-            color: var(--danger-color);
+            color: var(--success-color);
         }
         
         .account-balance.negative {
-            color: var(--success-color);
+            color: var(--danger-color);
+        }
+        
+        .account-balance.zero {
+            color: #6c757d;
         }
         
         .modal-header {
@@ -654,6 +658,21 @@
                                 </select>
                             </div>
                         </div>
+                        <div class="row" id="depositor-field" style="display: none;">
+                            <div class="col-md-6 mb-3">
+                                <label for="depositor-select" class="form-label">اختر المودع</label>
+                                <select class="form-select" id="depositor-select">
+                                    <option value="">-- اختر المودع --</option>
+                                    <option value="cash">نقدي</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="depositor-account" class="form-label">حساب المودع (اختياري)</label>
+                                <select class="form-select" id="depositor-account">
+                                    <option value="">-- اختر الحساب --</option>
+                                </select>
+                            </div>
+                        </div>
                         <div class="row">
                             <div class="col-md-8 mb-3">
                                 <label for="description" class="form-label">الوصف</label>
@@ -764,7 +783,7 @@
                                     <th>التاريخ</th>
                                     <th>النوع</th>
                                     <th>الوصف</th>
-                                    <th>الدائن</th>
+                                    <th>الطرف الثاني</th>
                                     <th>المبلغ</th>
                                     <th>الرصيد بعد الحركة</th>
                                     <th class="no-print">الإجراءات</th>
@@ -825,7 +844,7 @@
                                 <tr>
                                     <th>اسم الدائن</th>
                                     <th>رقم الهاتف</th>
-                                    <th>الرصيد</th>
+                                    <th>الرصيد الحالي</th>
                                     <th>عدد الحركات</th>
                                     <th class="no-print">الإجراءات</th>
                                 </tr>
@@ -892,7 +911,7 @@
                                     <th>النوع</th>
                                     <th>الوصف</th>
                                     <th>المبلغ</th>
-                                    <th>الرصيد بعد الحركة</th>
+                                    <th>الرصيد الحالي</th>
                                 </tr>
                             </thead>
                             <tbody id="statement-transactions">
@@ -965,6 +984,9 @@
         const debtorSelect = document.getElementById('debtor-select');
         const transactionTypeSelect = document.getElementById('transaction-type');
         const filterDebtorSelect = document.getElementById('filter-debtor');
+        const depositorField = document.getElementById('depositor-field');
+        const depositorSelect = document.getElementById('depositor-select');
+        const depositorAccount = document.getElementById('depositor-account');
 
         // Format number with thousands separators
         function formatNumber(number) {
@@ -1068,15 +1090,21 @@
             transactionCountEl.textContent = formatNumber(transactions.length);
         }
 
-        // Show/hide debtor field based on transaction type
+        // Show/hide fields based on transaction type
         transactionTypeSelect.addEventListener('change', function() {
-            if (this.value === 'expense') {
+            const type = this.value;
+            
+            // Reset all fields
+            debtorField.style.display = 'none';
+            depositorField.style.display = 'none';
+            debtorSelect.required = false;
+            depositorAccount.required = false;
+            
+            if (type === 'expense') {
                 debtorField.style.display = 'block';
                 debtorSelect.required = true;
-            } else {
-                debtorField.style.display = 'none';
-                debtorSelect.required = false;
-                debtorSelect.value = '';
+            } else if (type === 'deposit') {
+                depositorField.style.display = 'block';
             }
         });
 
@@ -1089,28 +1117,64 @@
             const description = document.getElementById('description').value;
             const transactionDate = document.getElementById('transaction-date').value;
             const debtorId = type === 'expense' ? debtorSelect.value : null;
+            const depositorType = type === 'deposit' ? depositorSelect.value : null;
+            const depositorAccountId = type === 'deposit' && depositorAccount.value ? parseInt(depositorAccount.value) : null;
             
-            if (!type || !amount || !description || !transactionDate || (type === 'expense' && !debtorId)) {
+            if (!type || !amount || !description || !transactionDate || 
+                (type === 'expense' && !debtorId) || 
+                (type === 'deposit' && !depositorType)) {
                 showNotification('يرجى ملء جميع الحقول المطلوبة', 'danger');
                 return;
             }
             
             const debtor = accounts.find(a => a.id === parseInt(debtorId));
+            const depositorAccountObj = accounts.find(a => a.id === depositorAccountId);
             
             // Calculate balance after this transaction
             const lastBalance = transactions.length > 0 ? 
                 parseFloat(transactions[transactions.length - 1].balance_after) : 0;
-            const balanceAfter = type === 'deposit' ? 
+            let balanceAfter = type === 'deposit' ? 
                 lastBalance + amount : lastBalance - amount;
+            
+            let secondParty = '';
+            let secondPartyId = null;
+            
+            if (type === 'expense') {
+                secondParty = debtor ? debtor.name : 'غير محدد';
+                secondPartyId = debtorId ? parseInt(debtorId) : null;
+            } else if (type === 'deposit') {
+                if (depositorType === 'cash') {
+                    secondParty = 'نقدي';
+                } else if (depositorAccountObj) {
+                    secondParty = depositorAccountObj.name;
+                    secondPartyId = depositorAccountId;
+                    
+                    // If depositing from a debtor account, reduce their balance
+                    const newDebtorBalance = parseFloat(depositorAccountObj.balance) - amount;
+                    const { error: updateError } = await supabase
+                        .from('accounts')
+                        .update({ balance: newDebtorBalance })
+                        .eq('id', depositorAccountId);
+                        
+                    if (updateError) {
+                        showNotification('فشل تحديث رصيد المودع: ' + updateError.message, 'warning');
+                    } else {
+                        depositorAccountObj.balance = newDebtorBalance;
+                        showNotification(`تم خصم ${formatNumber(amount)} د.ل من رصيد ${depositorAccountObj.name}`, 'info');
+                    }
+                }
+            }
             
             const transaction = {
                 type,
                 amount,
                 date: transactionDate,
-                debtor_id: debtorId ? parseInt(debtorId) : null,
-                debtor_name: debtor ? debtor.name : null,
+                debtor_id: type === 'expense' ? parseInt(debtorId) : null,
+                debtor_name: type === 'expense' ? (debtor ? debtor.name : null) : null,
                 description,
-                balance_after: balanceAfter
+                balance_after: balanceAfter,
+                second_party: secondParty,
+                second_party_id: secondPartyId
             };
             
             try {
@@ -1156,6 +1220,7 @@
                 transactionForm.reset();
                 setDefaultDate();
                 debtorField.style.display = 'none';
+                depositorField.style.display = 'none';
                 
                 // Show receipt option for expenses
                 if (type === 'expense' && debtor) {
@@ -1168,6 +1233,29 @@
                 updateLastUpdateTime();
             } catch (error) {
                 showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
+            }
+        });
+
+        // Update depositor account select when depositor type changes
+        depositorSelect.addEventListener('change', function() {
+            const depositorAccountSelect = document.getElementById('depositor-account');
+            
+            // Clear existing options except the first one
+            while (depositorAccountSelect.options.length > 1) {
+                depositorAccountSelect.remove(1);
+            }
+            
+            if (this.value === 'account') {
+                // Add accounts to select
+                accounts.forEach(account => {
+                    const option = document.createElement('option');
+                    option.value = account.id;
+                    option.textContent = account.name;
+                    depositorAccountSelect.appendChild(option);
+                });
+                depositorAccountSelect.required = true;
+            } else {
+                depositorAccountSelect.required = false;
             }
         });
 
@@ -1241,14 +1329,8 @@
             sortedTransactions.forEach(transaction => {
                 const row = document.createElement('tr');
                 
-                // Find debtor name
-                let debtorName = 'غير محدد';
-                if (transaction.debtor_id) {
-                    const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
-                    debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
-                } else if (transaction.debtor_name) {
-                    debtorName = transaction.debtor_name;
-                }
+                // Find second party name
+                let secondPartyName = transaction.second_party || 'غير محدد';
                 
                 row.innerHTML = `
                     <td>${formatDate(transaction.date)}</td>
@@ -1258,7 +1340,7 @@
                         </span>
                     </td>
                     <td>${transaction.description || 'بدون وصف'}</td>
-                    <td>${debtorName}</td>
+                    <td>${secondPartyName}</td>
                     <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
                         ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل
                     </td>
@@ -1293,15 +1375,29 @@
             
             accounts.forEach(account => {
                 // Calculate number of transactions for this account
-                const accountTransactions = transactions.filter(t => t.debtor_id === account.id);
+                const accountTransactions = transactions.filter(t => 
+                    t.debtor_id === account.id || t.second_party_id === account.id
+                );
                 const transactionCount = accountTransactions.length;
+                
+                const balance = parseFloat(account.balance);
+                let balanceClass = 'account-balance zero';
+                let balanceSign = '';
+                
+                if (balance > 0) {
+                    balanceClass = 'account-balance positive';
+                    balanceSign = '+';
+                } else if (balance < 0) {
+                    balanceClass = 'account-balance negative';
+                    balanceSign = '-';
+                }
                 
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${account.name}</td>
                     <td>${account.phone || 'غير متوفر'}</td>
-                    <td class="${parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative'}">
-                        ${formatNumber(parseFloat(account.balance))} د.ل
+                    <td class="${balanceClass}">
+                        ${balanceSign}${formatNumber(Math.abs(balance))} د.ل
                     </td>
                     <td>${transactionCount}</td>
                     <td class="no-print">
@@ -1384,7 +1480,7 @@
                 }
 
                 // Filter by debtor
-                if (debtorId && transaction.debtor_id != debtorId) {
+                if (debtorId && transaction.debtor_id != debtorId && transaction.second_party_id != debtorId) {
                     return false;
                 }
 
@@ -1436,13 +1532,9 @@
             const transaction = transactions.find(t => t.id === transactionId);
             if (!transaction) return;
             
-            let debtorName = 'غير محدد';
-            if (transaction.debtor_id) {
-                const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
-                debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
-            }
+            let secondPartyName = transaction.second_party || 'غير محدد';
             
-            const confirmMessage = `هل أنت متأكد أنك تريد حذف هذه الحركة؟\n\nالتفاصيل:\n- التاريخ: ${formatDate(transaction.date)}\n- النوع: ${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}\n- المبلغ: ${formatNumber(parseFloat(transaction.amount))} د.ل\n- الوصف: ${transaction.description || 'بدون وصف'}\n- الدائن: ${debtorName}\n\nهذا الإجراء لا يمكن التراجع عنه.`;
+            const confirmMessage = `هل أنت متأكد أنك تريد حذف هذه الحركة؟\n\nالتفاصيل:\n- التاريخ: ${formatDate(transaction.date)}\n- النوع: ${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}\n- المبلغ: ${formatNumber(parseFloat(transaction.amount))} د.ل\n- الوصف: ${transaction.description || 'بدون وصف'}\n- الطرف الثاني: ${secondPartyName}\n\nهذا الإجراء لا يمكن التراجع عنه.`;
             
             if (!confirm(confirmMessage)) {
                 return;
@@ -1467,6 +1559,24 @@
                 // Update balance
                 if (transaction.type === 'deposit') {
                     balance -= parseFloat(transaction.amount);
+                    
+                    // If deposit was from an account, restore the balance
+                    if (transaction.second_party_id) {
+                        const account = accounts.find(acc => acc.id === transaction.second_party_id);
+                        if (account) {
+                            const newBalance = parseFloat(account.balance) + parseFloat(transaction.amount);
+                            const { error: updateError } = await supabase
+                                .from('accounts')
+                                .update({ balance: newBalance })
+                                .eq('id', account.id);
+                                
+                            if (updateError) {
+                                showNotification('فشل استعادة رصيد المودع: ' + updateError.message, 'warning');
+                            } else {
+                                account.balance = newBalance;
+                            }
+                        }
+                    }
                 } else {
                     balance += parseFloat(transaction.amount);
                     
@@ -1504,7 +1614,9 @@
             if (!account) return;
             
             // Count transactions for this account
-            const accountTransactions = transactions.filter(t => t.debtor_id === accountId);
+            const accountTransactions = transactions.filter(t => 
+                t.debtor_id === accountId || t.second_party_id === accountId
+            );
             const transactionCount = accountTransactions.length;
             
             const confirmMessage = `هل أنت متأكد أنك تريد حذف هذا الحساب؟\n\nتفاصيل الحساب:\n- الاسم: ${account.name}\n- رقم الهاتف: ${account.phone || 'غير متوفر'}\n- الرصيد: ${formatNumber(parseFloat(account.balance))} د.ل\n- عدد الحركات المرتبطة: ${transactionCount}\n\nملاحظة: سيتم حذف جميع الحركات المرتبطة بهذا الحساب أيضاً.\n\nهذا الإجراء لا يمكن التراجع عنه.`;
@@ -1518,7 +1630,7 @@
                 const { error: transactionsError } = await supabase
                     .from('transactions')
                     .delete()
-                    .eq('debtor_id', accountId);
+                    .or(`debtor_id.eq.${accountId},second_party_id.eq.${accountId}`);
 
                 if (transactionsError) {
                     showNotification('فشل حذف حركات الحساب: ' + transactionsError.message, 'danger');
@@ -1540,14 +1652,17 @@
                 accounts = accounts.filter(acc => acc.id !== accountId);
                 
                 // Remove transactions and update balance
-                transactions = transactions.filter(t => t.debtor_id !== accountId);
-                filteredTransactions = filteredTransactions.filter(t => t.debtor_id !== accountId);
+                transactions = transactions.filter(t => t.debtor_id !== accountId && t.second_party_id !== accountId);
+                filteredTransactions = filteredTransactions.filter(t => t.debtor_id !== accountId && t.second_party_id !== accountId);
                 
                 // Update balance
                 const accountExpenses = accountTransactions
                     .filter(t => t.type === 'expense')
                     .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-                balance += accountExpenses;
+                const accountDeposits = accountTransactions
+                    .filter(t => t.type === 'deposit' && t.second_party_id === accountId)
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                balance = balance - accountDeposits + accountExpenses;
                 
                 renderAccounts();
                 renderTransactions();
@@ -1570,11 +1685,25 @@
             document.getElementById('statement-debtor-phone').textContent = account.phone || 'غير متوفر';
             
             const balanceEl = document.getElementById('statement-balance');
-            balanceEl.textContent = `${formatNumber(parseFloat(account.balance))} د.ل`;
-            balanceEl.className = parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative';
+            const balance = parseFloat(account.balance);
+            let balanceClass = 'account-balance zero';
+            let balanceSign = '';
+            
+            if (balance > 0) {
+                balanceClass = 'account-balance positive';
+                balanceSign = '+';
+            } else if (balance < 0) {
+                balanceClass = 'account-balance negative';
+                balanceSign = '-';
+            }
+            
+            balanceEl.textContent = `${balanceSign}${formatNumber(Math.abs(balance))} د.ل`;
+            balanceEl.className = balanceClass;
 
             // Get transactions for this account
-            const accountTransactions = transactions.filter(t => t.debtor_id === accountId);
+            const accountTransactions = transactions.filter(t => 
+                t.debtor_id === accountId || t.second_party_id === accountId
+            );
             const statementTransactions = document.getElementById('statement-transactions');
             statementTransactions.innerHTML = '';
 
@@ -1586,8 +1715,30 @@
                     return new Date(a.date) - new Date(b.date);
                 });
                 
+                // Calculate running balance
+                let runningBalance = 0;
+                
                 sortedTransactions.forEach(transaction => {
                     const row = document.createElement('tr');
+                    
+                    // Calculate current balance for this transaction
+                    if (transaction.type === 'expense' && transaction.debtor_id === accountId) {
+                        runningBalance += parseFloat(transaction.amount);
+                    } else if (transaction.type === 'deposit' && transaction.second_party_id === accountId) {
+                        runningBalance -= parseFloat(transaction.amount);
+                    }
+                    
+                    let balanceClass = 'account-balance zero';
+                    let balanceSign = '';
+                    
+                    if (runningBalance > 0) {
+                        balanceClass = 'account-balance positive';
+                        balanceSign = '+';
+                    } else if (runningBalance < 0) {
+                        balanceClass = 'account-balance negative';
+                        balanceSign = '-';
+                    }
+                    
                     row.innerHTML = `
                         <td>${formatDate(transaction.date)}</td>
                         <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
@@ -1595,7 +1746,9 @@
                         <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
                             ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل
                         </td>
-                        <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
+                        <td class="${balanceClass}">
+                            ${balanceSign}${formatNumber(Math.abs(runningBalance))} د.ل
+                        </td>
                     `;
                     statementTransactions.appendChild(row);
                 });
@@ -1622,7 +1775,7 @@
             receiptContent.innerHTML = `
                 <div class="receipt-form">
                     <div class="receipt-header">
-                        <div class="receipt-title">نموذج استلام سلفة</div>
+                        <div class="receipt-title">نموذج استلام السلفة</div>
                         <div>تاريخ الاستلام: ${formatDate(transaction.date)}</div>
                     </div>
                     
@@ -1790,27 +1943,21 @@
                                 <th>التاريخ</th>
                                 <th>النوع</th>
                                 <th>الوصف</th>
-                                <th>الدائن</th>
+                                <th>الطرف الثاني</th>
                                 <th>المبلغ</th>
                                 <th>الرصيد بعد الحركة</th>
                             </tr>
                         </thead>
                         <tbody>
                             ${sortedTransactions.map(transaction => {
-                                let debtorName = 'غير محدد';
-                                if (transaction.debtor_id) {
-                                    const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
-                                    debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
-                                } else if (transaction.debtor_name) {
-                                    debtorName = transaction.debtor_name;
-                                }
+                                let secondPartyName = transaction.second_party || 'غير محدد';
                                 
                                 return `
                                     <tr>
                                         <td>${formatDate(transaction.date)}</td>
                                         <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
                                         <td>${transaction.description || 'بدون وصف'}</td>
-                                        <td>${debtorName}</td>
+                                        <td>${secondPartyName}</td>
                                         <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
                                         <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
                                     </tr>
@@ -1861,27 +2008,21 @@
                             <th>التاريخ</th>
                             <th>النوع</th>
                             <th>الوصف</th>
-                            <th>الدائن</th>
+                            <th>الطرف الثاني</th>
                             <th>المبلغ</th>
                             <th>الرصيد بعد الحركة</th>
                         </tr>
                     </thead>
                     <tbody>
                         ${sortedTransactions.map(transaction => {
-                            let debtorName = 'غير محدد';
-                            if (transaction.debtor_id) {
-                                const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
-                                debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
-                            } else if (transaction.debtor_name) {
-                                debtorName = transaction.debtor_name;
-                            }
+                            let secondPartyName = transaction.second_party || 'غير محدد';
                             
                             return `
                                 <tr>
                                     <td>${formatDate(transaction.date)}</td>
                                     <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
                                     <td>${transaction.description || 'بدون وصف'}</td>
-                                    <td>${debtorName}</td>
+                                    <td>${secondPartyName}</td>
                                     <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
                                     <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
                                 </tr>
@@ -2017,14 +2158,18 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${transactions.slice(-10).map(transaction => `
-                                <tr>
-                                    <td>${formatDate(transaction.date)}</td>
-                                    <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                                    <td>${transaction.description || 'بدون وصف'}</td>
-                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
-                                </tr>
-                            `).join('')}
+                            ${transactions.slice(-10).map(transaction => {
+                                let secondPartyName = transaction.second_party || 'غير محدد';
+                                
+                                return `
+                                    <tr>
+                                        <td>${formatDate(transaction.date)}</td>
+                                        <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                        <td>${transaction.description || 'بدون وصف'}</td>
+                                        <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                     
@@ -2033,18 +2178,32 @@
                         <thead>
                             <tr>
                                 <th>اسم الدائن</th>
-                                <th>الرصيد</th>
+                                <th>الرصيد الحالي</th>
                                 <th>عدد الحركات</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${accounts.map(account => `
-                                <tr>
-                                    <td>${account.name}</td>
-                                    <td>${formatNumber(parseFloat(account.balance))} د.ل</td>
-                                    <td>${transactions.filter(t => t.debtor_id === account.id).length}</td>
-                                </tr>
-                            `).join('')}
+                            ${accounts.map(account => {
+                                const balance = parseFloat(account.balance);
+                                let balanceClass = '';
+                                let balanceSign = '';
+                                
+                                if (balance > 0) {
+                                    balanceClass = 'positive';
+                                    balanceSign = '+';
+                                } else if (balance < 0) {
+                                    balanceClass = 'negative';
+                                    balanceSign = '-';
+                                }
+                                
+                                return `
+                                    <tr>
+                                        <td>${account.name}</td>
+                                        <td class="${balanceClass}">${balanceSign}${formatNumber(Math.abs(balance))} د.ل</td>
+                                        <td>${transactions.filter(t => t.debtor_id === account.id || t.second_party_id === account.id).length}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                     
@@ -2065,7 +2224,9 @@
 
         function printAccountStatement() {
             const printWindow = window.open('', '_blank');
-            const accountTransactions = transactions.filter(t => t.debtor_id === currentStatementAccount.id);
+            const accountTransactions = transactions.filter(t => 
+                t.debtor_id === currentStatementAccount.id || t.second_party_id === currentStatementAccount.id
+            );
             const sortedTransactions = [...accountTransactions].sort((a, b) => {
                 return new Date(a.date) - new Date(b.date);
             });
@@ -2107,6 +2268,18 @@
                             background-color: #2c3e50;
                             color: white;
                         }
+                        .positive {
+                            color: #27ae60;
+                            font-weight: bold;
+                        }
+                        .negative {
+                            color: #e74c3c;
+                            font-weight: bold;
+                        }
+                        .zero {
+                            color: #6c757d;
+                            font-weight: bold;
+                        }
                         .print-footer {
                             text-align: center;
                             margin-top: 30px;
@@ -2126,7 +2299,7 @@
                     <div class="debtor-info">
                         <h3>${currentStatementAccount.name}</h3>
                         <p><strong>رقم الهاتف:</strong> ${currentStatementAccount.phone || 'غير متوفر'}</p>
-                        <p><strong>الرصيد الحالي:</strong> ${formatNumber(parseFloat(currentStatementAccount.balance))} د.ل</p>
+                        <p><strong>الرصيد الحالي:</strong> ${document.getElementById('statement-balance').textContent}</p>
                     </div>
                     
                     <table>
@@ -2136,19 +2309,40 @@
                                 <th>النوع</th>
                                 <th>الوصف</th>
                                 <th>المبلغ</th>
-                                <th>الرصيد بعد الحركة</th>
+                                <th>الرصيد الحالي</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${sortedTransactions.map(transaction => `
-                                <tr>
-                                    <td>${formatDate(transaction.date)}</td>
-                                    <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                                    <td>${transaction.description || 'بدون وصف'}</td>
-                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
-                                    <td>${formatNumber(parseFloat(transaction.balance_after))} د.ل</td>
-                                </tr>
-                            `).join('')}
+                            ${sortedTransactions.map(transaction => {
+                                // Calculate current balance
+                                let currentBalance = 0;
+                                if (transaction.type === 'expense' && transaction.debtor_id === currentStatementAccount.id) {
+                                    currentBalance = parseFloat(transaction.amount);
+                                } else if (transaction.type === 'deposit' && transaction.second_party_id === currentStatementAccount.id) {
+                                    currentBalance = -parseFloat(transaction.amount);
+                                }
+                                
+                                let balanceClass = 'zero';
+                                let balanceSign = '';
+                                
+                                if (currentBalance > 0) {
+                                    balanceClass = 'positive';
+                                    balanceSign = '+';
+                                } else if (currentBalance < 0) {
+                                    balanceClass = 'negative';
+                                    balanceSign = '-';
+                                }
+                                
+                                return `
+                                    <tr>
+                                        <td>${formatDate(transaction.date)}</td>
+                                        <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                        <td>${transaction.description || 'بدون وصف'}</td>
+                                        <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                        <td class="${balanceClass}">${balanceSign}${formatNumber(Math.abs(currentBalance))} د.ل</td>
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                     
@@ -2250,7 +2444,7 @@
                 <body>
                     <div class="receipt-form">
                         <div class="receipt-header">
-                            <div class="receipt-title">نموذج استلام سلفة</div>
+                            <div class="receipt-title">نموذج استلام السلفة</div>
                             <div>تاريخ الاستلام: ${formatDate(currentReceiptTransaction.date)}</div>
                         </div>
                         
@@ -2324,64 +2518,4 @@
                     .neq('id', 0);  // This deletes all rows
 
                 if (accountsError) {
-                    showNotification('فشل حذف الحسابات: ' + accountsError.message, 'danger');
-                    return;
-                }
-
-                // Reset local data
-                transactions = [];
-                accounts = [];
-                filteredTransactions = [];
-                balance = 0;
-                
-                renderTransactions();
-                renderAccounts();
-                updateDisplay();
-                updateDebtorSelects();
-                showNotification('تم حذف جميع البيانات بنجاح', 'success');
-            } catch (error) {
-                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
-            }
-        }
-
-        // Export data
-        function exportData() {
-            const data = {
-                transactions,
-                accounts,
-                balance,
-                exportDate: new Date().toISOString()
-            };
-            
-            const dataStr = JSON.stringify(data, null, 2);
-            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
-            
-            const exportFileDefaultName = `balance-system-export-${new Date().toISOString().split('T')[0]}.json`;
-            
-            const linkElement = document.createElement('a');
-            linkElement.setAttribute('href', dataUri);
-            linkElement.setAttribute('download', exportFileDefaultName);
-            linkElement.click();
-        }
-
-        // Refresh data
-        async function refreshData() {
-            const refreshBtn = document.querySelector('.refresh-btn');
-            refreshBtn.classList.add('spinning');
-            
-            await loadData();
-            updateDisplay();
-            renderTransactions();
-            renderAccounts();
-            updateDebtorSelects();
-            updateLastUpdateTime();
-            
-            refreshBtn.classList.remove('spinning');
-            showNotification('تم تحديث البيانات بنجاح', 'success');
-        }
-
-        // Initialize the app when the page loads
-        document.addEventListener('DOMContentLoaded', init);
-    </script>
-</body>
-</html>
+                    showNotification('فش
