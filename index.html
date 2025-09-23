@@ -1431,8 +1431,16 @@
                 const sortedTransactions = [...accountTransactions].sort((a, b) => {
                     return new Date(a.date) - new Date(b.date);
                 });
+                // Start with the initial balance of the debtor
+                let cumulativeBalance = parseFloat(account.balance);
                 sortedTransactions.forEach(transaction => {
                     const row = document.createElement('tr');
+                    // Calculate the cumulative balance after this transaction
+                    if (transaction.type === 'deposit') {
+                        cumulativeBalance += parseFloat(transaction.amount);
+                    } else {
+                        cumulativeBalance -= parseFloat(transaction.amount);
+                    }
                     row.innerHTML = `
                         <td>${formatDate(transaction.date)}</td>
                         <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
@@ -1440,7 +1448,7 @@
                         <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
                             ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل
                         </td>
-                        <td>${formatNumber(parseFloat(account.balance))} د.ل</td> <!-- تم التغيير هنا -->
+                        <td>${formatNumber(cumulativeBalance)} د.ل</td> <!-- Updated to show cumulative balance -->
                     `;
                     statementTransactions.appendChild(row);
                 });
@@ -1872,6 +1880,8 @@
             const sortedTransactions = [...accountTransactions].sort((a, b) => {
                 return new Date(a.date) - new Date(b.date);
             });
+            // Start with the initial balance of the debtor
+            let cumulativeBalance = parseFloat(currentStatementAccount.balance);
             printWindow.document.write(`
                 <!DOCTYPE html>
                 <html lang="ar" dir="rtl">
@@ -1940,15 +1950,23 @@
                             </tr>
                         </thead>
                         <tbody>
-                            ${sortedTransactions.map(transaction => `
-                                <tr>
-                                    <td>${formatDate(transaction.date)}</td>
-                                    <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                                    <td>${transaction.description || 'بدون وصف'}</td>
-                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
-                                    <td>${formatNumber(parseFloat(currentStatementAccount.balance))} د.ل</td> <!-- تم التغيير هنا -->
-                                </tr>
-                            `).join('')}
+                            ${sortedTransactions.map(transaction => {
+                                // Calculate the cumulative balance after this transaction
+                                if (transaction.type === 'deposit') {
+                                    cumulativeBalance += parseFloat(transaction.amount);
+                                } else {
+                                    cumulativeBalance -= parseFloat(transaction.amount);
+                                }
+                                return `
+                                    <tr>
+                                        <td>${formatDate(transaction.date)}</td>
+                                        <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                        <td>${transaction.description || 'بدون وصف'}</td>
+                                        <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount))} د.ل</td>
+                                        <td>${formatNumber(cumulativeBalance)} د.ل</td> <!-- Updated to show cumulative balance -->
+                                    </tr>
+                                `;
+                            }).join('')}
                         </tbody>
                     </table>
                     <div class="print-footer">
