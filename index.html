@@ -549,10 +549,10 @@
     </div>
 
     <script>
-        // Initialize Supabase
+        // Declare Supabase variables (will be initialized later)
+        let supabase;
         const supabaseUrl = 'https://fbexycaxggsxyphgmvui.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZXh5Y2F4Z2dzeHlwaGdtdnVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MTY3ODAsImV4cCI6MjA3NDE5Mjc4MH0.u0jPS3ZfrksfWZ07FiyAjHuPM1a1r2grunzNtZRTwHk';
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
 
         // DOM Elements
         const transactionForm = document.getElementById('transaction-form');
@@ -597,6 +597,9 @@
 
         // Initialize the application
         async function init() {
+            // Initialize Supabase client HERE, inside init()
+            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
             updateLastUpdate();
             await loadAccounts();
             await loadTransactions();
