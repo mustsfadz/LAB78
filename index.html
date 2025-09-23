@@ -4,739 +4,1235 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>نظام إدارة الرصيد</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary-color: #2c3e50;
             --secondary-color: #3498db;
-            --accent-color: #e74c3c;
-            --background-color: #ecf0f1;
-            --text-color: #2c3e50;
             --success-color: #27ae60;
-            --warning-color: #f39c12;
-            --border-radius: 8px;
+            --danger-color: #e74c3c;
+            --light-bg: #ecf0f1;
         }
-
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-
+        
         body {
-            background-color: var(--background-color);
-            color: var(--text-color);
-            line-height: 1.6;
-            padding: 20px;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: #f8f9fa;
         }
-
-        .container {
-            max-width: 1200px;
+        
+        .main-header {
+            background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+            color: white;
+            padding: 2rem 0;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        }
+        
+        .balance-card {
+            background: white;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            padding: 2rem;
+            margin-bottom: 2rem;
+            transition: transform 0.3s;
+        }
+        
+        .balance-card:hover {
+            transform: translateY(-5px);
+        }
+        
+        .balance-amount {
+            font-size: 3rem;
+            font-weight: 700;
+            color: var(--success-color);
+            margin: 1rem 0;
+        }
+        
+        .transaction-form, .accounts-form {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+        }
+        
+        .form-control:focus, .form-select:focus {
+            border-color: var(--secondary-color);
+            box-shadow: 0 0 0 0.25rem rgba(52, 152, 219, 0.25);
+        }
+        
+        .btn-primary {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            padding: 0.75rem 2rem;
+            font-weight: 600;
+        }
+        
+        .btn-primary:hover {
+            background-color: #2980b9;
+            border-color: #2980b9;
+        }
+        
+        .btn-danger {
+            background-color: var(--danger-color);
+            border-color: var(--danger-color);
+        }
+        
+        .btn-danger:hover {
+            background-color: #c0392b;
+            border-color: #c0392b;
+        }
+        
+        .btn-warning {
+            background-color: #f39c12;
+            border-color: #f39c12;
+            color: white;
+        }
+        
+        .btn-warning:hover {
+            background-color: #e67e22;
+            border-color: #e67e22;
+            color: white;
+        }
+        
+        .btn-info {
+            background-color: #17a2b8;
+            border-color: #17a2b8;
+            color: white;
+        }
+        
+        .btn-info:hover {
+            background-color: #138496;
+            border-color: #117a8b;
+            color: white;
+        }
+        
+        .btn-success {
+            background-color: #28a745;
+            border-color: #28a745;
+            color: white;
+        }
+        
+        .btn-success:hover {
+            background-color: #218838;
+            border-color: #1e7e34;
+            color: white;
+        }
+        
+        .transaction-table, .accounts-table {
+            background: white;
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        
+        .table thead {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(52, 152, 219, 0.1);
+        }
+        
+        .deposit {
+            color: var(--success-color);
+            font-weight: 600;
+        }
+        
+        .expense {
+            color: var(--danger-color);
+            font-weight: 600;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .stats-card {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            text-align: center;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            margin-bottom: 1rem;
+            transition: transform 0.3s;
+        }
+        
+        .stats-card:hover {
+            transform: translateY(-3px);
+        }
+        
+        .stats-icon {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .stats-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        
+        .stats-label {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+        
+        .filter-section {
+            background: white;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        
+        .nav-tabs .nav-link {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+        
+        .nav-tabs .nav-link.active {
+            background-color: var(--secondary-color);
+            border-color: var(--secondary-color);
+            color: white;
+        }
+        
+        .account-balance {
+            font-size: 1.2rem;
+            font-weight: 600;
+        }
+        
+        .account-balance.positive {
+            color: var(--danger-color);
+        }
+        
+        .account-balance.negative {
+            color: var(--success-color);
+        }
+        
+        .modal-header {
+            background-color: var(--primary-color);
+            color: white;
+        }
+        
+        .modal-content {
+            border-radius: 15px;
+        }
+        
+        /* Print Styles */
+        @media print {
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+            
+            body {
+                background: white;
+                font-size: 12pt;
+                line-height: 1.4;
+            }
+            
+            .no-print {
+                display: none !important;
+            }
+            
+            .print-only {
+                display: block !important;
+            }
+            
+            .main-header, .balance-card, .transaction-form, .accounts-form, 
+            .filter-section, .nav-tabs, .action-buttons, .modal {
+                display: none !important;
+            }
+            
+            .transaction-table, .accounts-table {
+                box-shadow: none;
+                border-radius: 0;
+                margin-bottom: 0;
+                page-break-inside: avoid;
+            }
+            
+            .table {
+                margin-bottom: 0;
+                font-size: 10pt;
+                width: 100% !important;
+            }
+            
+            .table thead {
+                background-color: #2c3e50 !important;
+                color: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .deposit, .expense {
+                color: black !important;
+                font-weight: bold !important;
+            }
+            
+            .page-break {
+                page-break-after: always;
+            }
+            
+            .print-summary {
+                margin-bottom: 1rem;
+                padding: 0.5rem;
+                border: 1px solid #ddd;
+                page-break-inside: avoid;
+            }
+            
+            .print-header {
+                text-align: center;
+                margin-bottom: 1rem;
+                padding-bottom: 0.5rem;
+                border-bottom: 2px solid #2c3e50;
+                page-break-after: avoid;
+            }
+            
+            .print-footer {
+                text-align: center;
+                margin-top: 1rem;
+                padding-top: 0.5rem;
+                border-top: 1px solid #ddd;
+                font-size: 10pt;
+                color: #666;
+                page-break-before: avoid;
+            }
+        }
+        
+        .print-header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 20px;
+        }
+        
+        .print-footer {
+            text-align: center;
+            margin-top: 30px;
+            border-top: 1px solid #ddd;
+            padding-top: 20px;
+            font-size: 12px;
+            color: #666;
+        }
+        
+        .storage-info {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .storage-info h5 {
+            color: #1976d2;
+            margin-bottom: 10px;
+        }
+        
+        .print-preview {
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .print-actions {
+            background: #f5f5f5;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+        
+        /* Receipt Form Styles */
+        .receipt-form {
+            border: 2px solid #2c3e50;
+            border-radius: 10px;
+            padding: 30px;
+            max-width: 600px;
             margin: 0 auto;
             background: white;
-            padding: 30px;
-            border-radius: var(--border-radius);
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
         }
-
-        header {
+        
+        .receipt-header {
             text-align: center;
-            margin-bottom: 30px;
-            padding: 20px;
-            background: var(--primary-color);
-            color: white;
-            border-radius: var(--border-radius);
-        }
-
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-
-        .subtitle {
-            font-size: 1.2rem;
-            opacity: 0.9;
-        }
-
-        .dashboard {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 20px;
+            border-bottom: 2px solid #2c3e50;
+            padding-bottom: 20px;
             margin-bottom: 30px;
         }
-
-        .stat-card {
-            background: var(--primary-color);
-            color: white;
-            padding: 20px;
-            border-radius: var(--border-radius);
-            text-align: center;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-        }
-
-        .stat-card h3 {
-            font-size: 1.1rem;
-            margin-bottom: 10px;
-            opacity: 0.8;
-        }
-
-        .stat-card .value {
-            font-size: 2rem;
+        
+        .receipt-title {
+            font-size: 24px;
             font-weight: bold;
+            color: #2c3e50;
+            margin-bottom: 10px;
         }
-
-        .section {
-            margin-bottom: 40px;
-            padding: 25px;
-            background: white;
-            border-radius: var(--border-radius);
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        
+        .receipt-details {
+            margin-bottom: 30px;
         }
-
-        .section-title {
-            font-size: 1.5rem;
-            margin-bottom: 20px;
-            color: var(--primary-color);
-            border-bottom: 2px solid var(--secondary-color);
-            padding-bottom: 10px;
+        
+        .receipt-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            padding: 5px 0;
+            border-bottom: 1px dashed #ddd;
         }
-
-        form {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 15px;
-            margin-bottom: 20px;
+        
+        .receipt-signature {
+            margin-top: 50px;
+            display: flex;
+            justify-content: space-between;
         }
-
-        .form-group {
-            margin-bottom: 15px;
+        
+        .signature-box {
+            width: 200px;
+            text-align: center;
         }
-
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: 600;
-            color: var(--primary-color);
+        
+        .signature-line {
+            border-bottom: 1px solid #333;
+            margin: 30px 0 10px;
+            height: 40px;
         }
-
-        input, select, textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #ddd;
-            border-radius: var(--border-radius);
-            font-size: 1rem;
-            transition: border-color 0.3s;
+        
+        .receipt-date {
+            text-align: left;
+            margin-top: 20px;
+            font-size: 14px;
+            color: #666;
         }
-
-        input:focus, select:focus, textarea:focus {
-            outline: none;
-            border-color: var(--secondary-color);
-        }
-
-        button {
-            background: var(--secondary-color);
-            color: white;
-            padding: 12px 24px;
-            border: none;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            font-size: 1rem;
-            font-weight: 600;
-            transition: background 0.3s;
-        }
-
-        button:hover {
-            background: #2980b9;
-        }
-
-        .btn-danger {
-            background: var(--accent-color);
-        }
-
-        .btn-danger:hover {
-            background: #c0392b;
-        }
-
-        .btn-success {
-            background: var(--success-color);
-        }
-
-        .btn-success:hover {
-            background: #229954;
-        }
-
-        .btn-warning {
-            background: var(--warning-color);
-        }
-
-        .btn-warning:hover {
-            background: #e67e22;
-        }
-
-        .btn-print {
-            background: #9b59b6;
-        }
-
-        .btn-print:hover {
-            background: #8e44ad;
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
+        
+        .receipt-amount {
+            font-size: 28px;
+            font-weight: bold;
+            color: #e74c3c;
+            text-align: center;
             margin: 20px 0;
-            background: white;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-        }
-
-        th, td {
             padding: 15px;
-            text-align: right;
-            border-bottom: 1px solid #ddd;
-        }
-
-        th {
-            background: var(--primary-color);
-            color: white;
-            font-weight: 600;
-        }
-
-        tr:hover {
             background: #f8f9fa;
+            border-radius: 5px;
         }
-
-        .actions {
+        
+        .refresh-btn {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .refresh-btn:hover {
+            background-color: #2980b9;
+            transform: rotate(180deg);
+        }
+        
+        .refresh-btn.spinning {
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .filter-buttons {
             display: flex;
             gap: 10px;
-            justify-content: flex-end;
-        }
-
-        .badge {
-            padding: 5px 10px;
-            border-radius: 20px;
-            font-size: 0.8rem;
-            font-weight: 600;
-        }
-
-        .badge-deposit {
-            background: #d4edda;
-            color: #155724;
-        }
-
-        .badge-expense {
-            background: #f8d7da;
-            color: #721c24;
-        }
-
-        .filters {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-            gap: 15px;
             margin-bottom: 20px;
-            padding: 20px;
-            background: #f8f9fa;
-            border-radius: var(--border-radius);
+            flex-wrap: wrap;
         }
-
-        .print-section {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: white;
-            z-index: 1000;
-            padding: 50px;
-            overflow: auto;
-        }
-
-        .close-print {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            font-size: 2rem;
-            cursor: pointer;
-        }
-
+        
         @media print {
-            body * {
-                visibility: hidden;
-            }
-            .print-section, .print-section * {
-                visibility: visible;
-            }
-            .print-section {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                height: 100%;
-            }
-            .close-print {
-                display: none;
+            .receipt-form {
+                box-shadow: none;
+                border: 1px solid #333;
             }
         }
-
-        .loading {
-            text-align: center;
-            padding: 50px;
-            font-size: 1.2rem;
-            color: var(--secondary-color);
-        }
-
-        .error {
-            background: #f8d7da;
-            color: #721c24;
-            padding: 15px;
-            border-radius: var(--border-radius);
-            margin: 20px 0;
-            text-align: center;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .container {
-                padding: 15px;
-            }
-            
-            h1 {
-                font-size: 2rem;
-            }
-            
-            .dashboard {
-                grid-template-columns: 1fr;
-            }
-            
-            form {
-                grid-template-columns: 1fr;
-            }
-            
-            .filters {
-                grid-template-columns: 1fr;
-            }
-            
-            th, td {
-                padding: 10px 8px;
-                font-size: 0.9rem;
-            }
+        
+        /* Format numbers with thousands separators */
+        .formatted-number {
+            font-feature-settings: "tnum";
+            font-variant-numeric: tabular-nums;
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>نظام إدارة الرصيد</h1>
-            <p class="subtitle">إدارة مالية بسيطة وفعالة</p>
-            <p id="last-update">آخر تحديث: --:--:--</p>
-        </header>
-
-        <div class="dashboard">
-            <div class="stat-card">
-                <h3>الرصيد الحالي</h3>
-                <div class="value" id="current-balance">0.00</div>
-                <div>د.ل</div>
-            </div>
-            <div class="stat-card">
-                <h3>إجمالي الإيداعات</h3>
-                <div class="value" id="total-deposits">0.00</div>
-                <div>د.ل</div>
-            </div>
-            <div class="stat-card">
-                <h3>إجمالي المصروفات</h3>
-                <div class="value" id="total-expenses">0.00</div>
-                <div>د.ل</div>
-            </div>
-            <div class="stat-card">
-                <h3>عدد الحركات</h3>
-                <div class="value" id="total-transactions">0</div>
-                <div>حركة</div>
+    <!-- Header Section -->
+    <header class="main-header no-print">
+        <div class="container">
+            <div class="row align-items-center">
+                <div class="col-md-6">
+                    <h1><i class="bi bi-wallet2"></i> نظام إدارة الرصيد</h1>
+                    <p class="lead mb-0">إدارة مالية بسيطة وفعالة</p>
+                </div>
+                <div class="col-md-6 text-md-end">
+                    <div class="d-flex justify-content-md-end align-items-center">
+                        <div class="me-3">
+                            <small>آخر تحديث</small>
+                            <div id="last-update" class="fw-bold">--:--:--</div>
+                        </div>
+                        <button class="btn btn-light" onclick="exportData()">
+                            <i class="bi bi-download"></i> تصدير البيانات
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
+    </header>
 
-        <div class="section">
-            <h2 class="section-title">إضافة حركة جديدة</h2>
-            <form id="transaction-form">
-                <div class="form-group">
-                    <label for="transaction-type">نوع الحركة</label>
-                    <select id="transaction-type" required>
-                        <option value="">-- اختر نوع الحركة --</option>
-                        <option value="deposit">إيداع</option>
-                        <option value="expense">مصروف</option>
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="amount">المبلغ (د.ل)</label>
-                    <input type="number" id="amount" min="0" step="0.01" required>
-                </div>
-                <div class="form-group">
-                    <label for="transaction-date">التاريخ</label>
-                    <input type="date" id="transaction-date" required>
-                </div>
-                <div class="form-group">
-                    <label for="debtor">اختر الدائن</label>
-                    <select id="debtor">
-                        <option value="">-- اختر الدائن --</option>
-                        <!-- سيتم تعبئته ديناميكيًا -->
-                    </select>
-                </div>
-                <div class="form-group">
-                    <label for="description">الوصف</label>
-                    <textarea id="description" rows="2"></textarea>
-                </div>
-                <div class="form-group" style="grid-column: span 2;">
-                    <button type="submit">إضافة الحركة</button>
-                </div>
-            </form>
+    <main class="container my-5">
+        <!-- Storage Information -->
+        <div class="storage-info no-print">
+            <h5><i class="bi bi-info-circle"></i> معلومات تخزين البيانات</h5>
+            <p class="mb-0">
+                <strong>مكان الحفظ:</strong> يتم حفظ جميع بياناتك في قاعدة بيانات Supabase 
+                <br>
+                <strong>ملاحظة هامة:</strong> البيانات محفوظة بشكل آمن في السحابة ويمكن الوصول إليها من أي مكان.
+            </p>
         </div>
 
-        <div class="section">
-            <h2 class="section-title">فلترة الحركات</h2>
-            <div class="filters">
-                <div class="form-group">
-                    <label for="filter-type">نوع الحركة</label>
-                    <select id="filter-type">
-                        <option value="all">الكل</option>
-                        <option value="deposit">إيداع فقط</option>
-                        <option value="expense">مصروف فقط</option>
-                    </select>
+        <!-- Navigation Tabs -->
+        <ul class="nav nav-tabs mb-4 no-print" id="mainTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="transactions-tab" data-bs-toggle="tab" data-bs-target="#transactions" type="button" role="tab">الحركات المالية</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="accounts-tab" data-bs-toggle="tab" data-bs-target="#accounts" type="button" role="tab">حسابات الدائنين</button>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content" id="mainTabContent">
+            <!-- Transactions Tab -->
+            <div class="tab-pane fade show active" id="transactions" role="tabpanel">
+                <!-- Balance Display Section -->
+                <section class="balance-card no-print">
+                    <h2>الرصيد الحالي</h2>
+                    <div class="balance-amount" id="current-balance">0.00 د.ل</div>
+                    <div class="row mt-4">
+                        <div class="col-md-4">
+                            <div class="stats-card">
+                                <div class="stats-icon text-success"><i class="bi bi-arrow-down-circle"></i></div>
+                                <div class="stats-value" id="total-deposits">0.00</div>
+                                <div class="stats-label">إجمالي الإيداعات</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stats-card">
+                                <div class="stats-icon text-danger"><i class="bi bi-arrow-up-circle"></i></div>
+                                <div class="stats-value" id="total-expenses">0.00</div>
+                                <div class="stats-label">إجمالي المصروفات</div>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="stats-card">
+                                <div class="stats-icon text-primary"><i class="bi bi-list-ol"></i></div>
+                                <div class="stats-value" id="transaction-count">0</div>
+                                <div class="stats-label">عدد الحركات</div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Transaction Form Section -->
+                <section class="transaction-form no-print">
+                    <h3 class="mb-4"><i class="bi bi-plus-circle"></i> إضافة حركة جديدة</h3>
+                    <form id="transaction-form">
+                        <div class="row">
+                            <div class="col-md-3 mb-3">
+                                <label for="transaction-type" class="form-label">نوع الحركة</label>
+                                <select class="form-select" id="transaction-type" required>
+                                    <option value="">-- اختر نوع الحركة --</option>
+                                    <option value="deposit">إيداع</option>
+                                    <option value="expense">مصروف</option>
+                                </select>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="amount" class="form-label">المبلغ (د.ل)</label>
+                                <input type="number" class="form-control" id="amount" step="0.01" min="0.01" required>
+                            </div>
+                            <div class="col-md-3 mb-3">
+                                <label for="transaction-date" class="form-label">التاريخ</label>
+                                <input type="date" class="form-control" id="transaction-date" required>
+                            </div>
+                            <div class="col-md-3 mb-3" id="debtor-field" style="display: none;">
+                                <label for="debtor-select" class="form-label">اختر الدائن</label>
+                                <select class="form-select" id="debtor-select">
+                                    <option value="">-- اختر الدائن --</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-8 mb-3">
+                                <label for="description" class="form-label">الوصف</label>
+                                <input type="text" class="form-control" id="description" placeholder="أدخل وصف الحركة" required>
+                            </div>
+                            <div class="col-md-4 mb-3 d-flex align-items-end">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-check-circle"></i> إضافة الحركة
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Filter Section -->
+                <section class="filter-section no-print">
+                    <h4 class="mb-3"><i class="bi bi-funnel"></i> فلترة الحركات</h4>
+                    <div class="row">
+                        <div class="col-md-3 mb-3">
+                            <label for="filter-type" class="form-label">نوع الحركة</label>
+                            <select class="form-select" id="filter-type">
+                                <option value="">الكل</option>
+                                <option value="deposit">إيداع فقط</option>
+                                <option value="expense">مصروف فقط</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="filter-debtor" class="form-label">الدائن</label>
+                            <select class="form-select" id="filter-debtor">
+                                <option value="">الكل</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="filter-from" class="form-label">من تاريخ</label>
+                            <input type="date" class="form-control" id="filter-from">
+                        </div>
+                        <div class="col-md-3 mb-3">
+                            <label for="filter-to" class="form-label">إلى تاريخ</label>
+                            <input type="date" class="form-control" id="filter-to">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-12">
+                            <button class="btn btn-secondary" onclick="applyFilters()">
+                                <i class="bi bi-funnel-fill"></i> تطبيق الفلترة
+                            </button>
+                            <button class="btn btn-outline-secondary ms-2" onclick="resetFilters()">
+                                <i class="bi bi-arrow-counterclockwise"></i> إعادة تعيين
+                            </button>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Quick Filter Buttons -->
+                <div class="filter-buttons no-print">
+                    <button class="btn btn-info" onclick="showExpensesOnly()">
+                        <i class="bi bi-arrow-up-circle"></i> إظهار المصروفات فقط
+                    </button>
+                    <button class="btn btn-success" onclick="showDepositsOnly()">
+                        <i class="bi bi-arrow-down-circle"></i> إظهار الإيداعات فقط
+                    </button>
+                    <button class="btn btn-primary" onclick="showAllTransactions()">
+                        <i class="bi bi-list-ul"></i> إظهار الكل
+                    </button>
                 </div>
-                <div class="form-group">
-                    <label for="filter-debtor">الدائن</label>
-                    <select id="filter-debtor">
-                        <option value="all">الكل</option>
-                        <!-- سيتم تعبئته ديناميكيًا -->
-                    </select>
+
+                <!-- Print Actions -->
+                <div class="print-actions no-print">
+                    <h5>خيارات الطباعة</h5>
+                    <div class="row">
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-info w-100" onclick="printTransactions()">
+                                <i class="bi bi-printer"></i> طباعة سجل الحركات المالية
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-primary w-100" onclick="printPreview()">
+                                <i class="bi bi-eye"></i> معاينة قبل الطباعة
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-success w-100" onclick="printSummary()">
+                                <i class="bi bi-file-earmark-text"></i> طباعة ملخص الحساب
+                            </button>
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button class="btn btn-warning w-100" onclick="printCurrentView()">
+                                <i class="bi bi-printer-fill"></i> طباعة العرض الحالي
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label for="filter-from-date">من تاريخ</label>
-                    <input type="date" id="filter-from-date">
-                </div>
-                <div class="form-group">
-                    <label for="filter-to-date">إلى تاريخ</label>
-                    <input type="date" id="filter-to-date">
-                </div>
-                <div class="form-group" style="display: flex; gap: 10px; align-items: flex-end;">
-                    <button type="button" id="apply-filter">تطبيق الفلترة</button>
-                    <button type="button" id="reset-filter" class="btn-warning">إعادة تعيين</button>
-                </div>
+
+                <!-- Transaction History Section -->
+                <section class="transaction-table">
+                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom no-print">
+                        <h3 class="mb-0"><i class="bi bi-list-ul"></i> سجل الحركات المالية</h3>
+                        <div>
+                            <button class="btn btn-outline-danger btn-sm" onclick="clearAllData()">
+                                <i class="bi bi-trash"></i> مسح الكل
+                            </button>
+                        </div>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>النوع</th>
+                                    <th>الوصف</th>
+                                    <th>الدائن</th>
+                                    <th>المبلغ</th>
+                                    <th>الرصيد بعد الحركة</th>
+                                    <th class="no-print">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="transaction-list">
+                                <!-- Transactions will be added here dynamically -->
+                            </tbody>
+                        </table>
+                        <div id="no-transactions" class="text-center p-5 text-muted no-print">
+                            <i class="bi bi-inbox" style="font-size: 3rem;"></i>
+                            <p class="mt-3">لا توجد حركات مالية مسجلة</p>
+                        </div>
+                    </div>
+                </section>
             </div>
-            <div style="display: flex; gap: 10px; justify-content: center; margin-top: 20px;">
-                <button type="button" id="show-expenses-only" class="btn-danger">إظهار المصروفات فقط</button>
-                <button type="button" id="show-deposits-only" class="btn-success">إظهار الإيداعات فقط</button>
-                <button type="button" id="show-all" class="btn-warning">إظهار الكل</button>
+
+            <!-- Accounts Tab -->
+            <div class="tab-pane fade" id="accounts" role="tabpanel">
+                <!-- Accounts Form Section -->
+                <section class="accounts-form no-print">
+                    <h3 class="mb-4"><i class="bi bi-person-plus"></i> إضافة حساب دائن جديد</h3>
+                    <form id="account-form">
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="debtor-name" class="form-label">اسم الدائن</label>
+                                <input type="text" class="form-control" id="debtor-name" placeholder="أدخل اسم الدائن" required>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="debtor-phone" class="form-label">رقم الهاتف</label>
+                                <input type="tel" class="form-control" id="debtor-phone" placeholder="أدخل رقم الهاتف">
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="debtor-notes" class="form-label">ملاحظات</label>
+                                <textarea class="form-control" id="debtor-notes" rows="2" placeholder="أي ملاحظات إضافية"></textarea>
+                            </div>
+                        </div>
+                        <div class="row">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="bi bi-check-circle"></i> إضافة الحساب
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                </section>
+
+                <!-- Accounts List Section -->
+                <section class="accounts-table">
+                    <div class="d-flex justify-content-between align-items-center p-3 border-bottom no-print">
+                        <h3 class="mb-0"><i class="bi bi-people"></i> قائمة الدائنين</h3>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>اسم الدائن</th>
+                                    <th>رقم الهاتف</th>
+                                    <th>الرصيد</th>
+                                    <th>عدد الحركات</th>
+                                    <th class="no-print">الإجراءات</th>
+                                </tr>
+                            </thead>
+                            <tbody id="accounts-list">
+                                <!-- Accounts will be added here dynamically -->
+                            </tbody>
+                        </table>
+                        <div id="no-accounts" class="text-center p-5 text-muted no-print">
+                            <i class="bi bi-person-x" style="font-size: 3rem;"></i>
+                            <p class="mt-3">لا توجد حسابات دائنين مسجلة</p>
+                        </div>
+                    </div>
+                </section>
             </div>
         </div>
+    </main>
 
-        <div class="section">
-            <h2 class="section-title">خيارات الطباعة</h2>
-            <div style="display: flex; gap: 15px; justify-content: center; flex-wrap: wrap;">
-                <button type="button" id="print-transactions" class="btn-print">طباعة سجل الحركات المالية</button>
-                <button type="button" id="preview-print" class="btn-print">معاينة قبل الطباعة</button>
-                <button type="button" id="print-summary" class="btn-print">طباعة ملخص الحساب</button>
-                <button type="button" id="print-current-view" class="btn-print">طباعة العرض الحالي</button>
-            </div>
-        </div>
+    <!-- Refresh Button -->
+    <button class="refresh-btn no-print" onclick="refreshData()" title="تحديث البيانات">
+        <i class="bi bi-arrow-clockwise"></i>
+    </button>
 
-        <div class="section">
-            <h2 class="section-title">سجل الحركات المالية</h2>
-            <button type="button" id="clear-all-transactions" class="btn-danger" style="margin-bottom: 20px;">مسح الكل</button>
-            <div id="transactions-loading" class="loading">جارٍ تحميل الحركات...</div>
-            <table id="transactions-table">
-                <thead>
-                    <tr>
-                        <th>التاريخ</th>
-                        <th>النوع</th>
-                        <th>الوصف</th>
-                        <th>الدائن</th>
-                        <th>المبلغ</th>
-                        <th>الرصيد بعد الحركة</th>
-                        <th>الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="transactions-body">
-                    <!-- سيتم تعبئته ديناميكيًا -->
-                </tbody>
-            </table>
-            <div id="no-transactions" style="text-align: center; padding: 30px; display: none;">
-                لا توجد حركات مالية مسجلة
-            </div>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title">إضافة حساب دائن جديد</h2>
-            <form id="account-form">
-                <div class="form-group">
-                    <label for="account-name">اسم الدائن</label>
-                    <input type="text" id="account-name" required>
+    <!-- Print Preview Modal -->
+    <div class="modal fade" id="printPreviewModal" tabindex="--1">
+        <div class="modal-dialog modal-xl">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">معاينة الطباعة</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
                 </div>
-                <div class="form-group">
-                    <label for="account-phone">رقم الهاتف</label>
-                    <input type="tel" id="account-phone">
+                <div class="modal-body">
+                    <div id="printPreviewContent"></div>
                 </div>
-                <div class="form-group">
-                    <label for="account-notes">ملاحظات</label>
-                    <textarea id="account-notes" rows="2"></textarea>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="button" class="btn btn-primary" onclick="printFromPreview()">
+                        <i class="bi bi-printer"></i> طباعة
+                    </button>
                 </div>
-                <div class="form-group">
-                    <button type="submit">إضافة الحساب</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="section">
-            <h2 class="section-title">قائمة الدائنين</h2>
-            <div id="accounts-loading" class="loading">جارٍ تحميل الدائنين...</div>
-            <table id="accounts-table">
-                <thead>
-                    <tr>
-                        <th>اسم الدائن</th>
-                        <th>رقم الهاتف</th>
-                        <th>الرصيد</th>
-                        <th>عدد الحركات</th>
-                        <th>الإجراءات</th>
-                    </tr>
-                </thead>
-                <tbody id="accounts-body">
-                    <!-- سيتم تعبئته ديناميكيًا -->
-                </tbody>
-            </table>
-            <div id="no-accounts" style="text-align: center; padding: 30px; display: none;">
-                لا توجد حسابات دائنين مسجلة
             </div>
         </div>
     </div>
 
-    <!-- معاينة الطباعة -->
-    <div id="print-preview" class="print-section">
-        <span class="close-print" onclick="closePrintPreview()">&times;</span>
-        <div id="print-content">
-            <!-- سيتم تعبئته ديناميكيًا -->
+    <!-- Account Statement Modal -->
+    <div class="modal fade" id="accountStatementModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">كشف حساب الدائن</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <h6 id="statement-debtor-name"></h6>
+                        <p class="mb-1">رقم الهاتف: <span id="statement-debtor-phone"></span></p>
+                        <p class="mb-0">الرصيد الحالي: <span id="statement-balance" class="account-balance"></span></p>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>التاريخ</th>
+                                    <th>النوع</th>
+                                    <th>الوصف</th>
+                                    <th>المبلغ</th>
+                                    <th>الرصيد بعد الحركة</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statement-transactions">
+                                <!-- Transactions will be added here dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="button" class="btn btn-primary" onclick="printAccountStatement()">
+                        <i class="bi bi-printer"></i> طباعة الكشف
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
-    <!-- كشف حساب الدائن -->
-    <div id="account-statement" class="print-section">
-        <span class="close-print" onclick="closeAccountStatement()">&times;</span>
-        <h2>كشف حساب الدائن</h2>
-        <p><strong>اسم الدائن:</strong> <span id="statement-debtor-name"></span></p>
-        <p><strong>رقم الهاتف:</strong> <span id="statement-debtor-phone"></span></p>
-        <p><strong>الرصيد الحالي:</strong> <span id="statement-debtor-balance"></span> د.ل</p>
-        <table>
-            <thead>
-                <tr>
-                    <th>التاريخ</th>
-                    <th>النوع</th>
-                    <th>الوصف</th>
-                    <th>المبلغ</th>
-                    <th>الرصيد بعد الحركة</th>
-                </tr>
-            </thead>
-            <tbody id="statement-transactions">
-                <!-- سيتم تعبئته ديناميكيًا -->
-            </tbody>
-        </table>
-    </div>
-
-    <!-- نموذج استلام السلفة -->
-    <div id="advance-receipt" class="print-section">
-        <span class="close-print" onclick="closeAdvanceReceipt()">&times;</span>
-        <h2>نموذج استلام السلفة</h2>
-        <div id="advance-content">
-            <!-- سيتم تعبئته ديناميكيًا -->
+    <!-- Receipt Form Modal -->
+    <div class="modal fade" id="receiptFormModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">نموذج استلام السلفة</h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div id="receiptFormContent"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">إغلاق</button>
+                    <button type="button" class="btn btn-primary" onclick="printReceiptForm()">
+                        <i class="bi bi-printer"></i> طباعة النموذج
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        // Declare Supabase variables (will be initialized later)
-        let supabase;
+        // إعدادات الاتصال بـ Supabase
         const supabaseUrl = 'https://fbexycaxggsxyphgmvui.supabase.co';
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZiZXh5Y2F4Z2dzeHlwaGdtdnVpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTg2MTY3ODAsImV4cCI6MjA3NDE5Mjc4MH0.u0jPS3ZfrksfWZ07FiyAjHuPM1a1r2grunzNtZRTwHk';
+        const supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
+
+        // Initialize data
+        let transactions = [];
+        let accounts = [];
+        let balance = 0;
+        let filteredTransactions = [];
+        let currentStatementAccount = null;
+        let currentReceiptTransaction = null;
+        let currentViewType = 'all'; // 'all', 'expenses', 'deposits'
 
         // DOM Elements
         const transactionForm = document.getElementById('transaction-form');
         const accountForm = document.getElementById('account-form');
-        const debtorSelect = document.getElementById('debtor');
+        const transactionList = document.getElementById('transaction-list');
+        const accountsList = document.getElementById('accounts-list');
+        const currentBalanceEl = document.getElementById('current-balance');
+        const totalDepositsEl = document.getElementById('total-deposits');
+        const totalExpensesEl = document.getElementById('total-expenses');
+        const transactionCountEl = document.getElementById('transaction-count');
+        const noTransactionsEl = document.getElementById('no-transactions');
+        const noAccountsEl = document.getElementById('no-accounts');
+        const lastUpdateEl = document.getElementById('last-update');
+        const transactionDateEl = document.getElementById('transaction-date');
+        const debtorField = document.getElementById('debtor-field');
+        const debtorSelect = document.getElementById('debtor-select');
+        const transactionTypeSelect = document.getElementById('transaction-type');
         const filterDebtorSelect = document.getElementById('filter-debtor');
-        const transactionsBody = document.getElementById('transactions-body');
-        const accountsBody = document.getElementById('accounts-body');
-        const currentBalance = document.getElementById('current-balance');
-        const totalDeposits = document.getElementById('total-deposits');
-        const totalExpenses = document.getElementById('total-expenses');
-        const totalTransactions = document.getElementById('total-transactions');
-        const lastUpdate = document.getElementById('last-update');
-        const applyFilterBtn = document.getElementById('apply-filter');
-        const resetFilterBtn = document.getElementById('reset-filter');
-        const showExpensesOnlyBtn = document.getElementById('show-expenses-only');
-        const showDepositsOnlyBtn = document.getElementById('show-deposits-only');
-        const showAllBtn = document.getElementById('show-all');
-        const printTransactionsBtn = document.getElementById('print-transactions');
-        const previewPrintBtn = document.getElementById('preview-print');
-        const printSummaryBtn = document.getElementById('print-summary');
-        const printCurrentViewBtn = document.getElementById('print-current-view');
-        const clearAllTransactionsBtn = document.getElementById('clear-all-transactions');
-        const transactionsLoading = document.getElementById('transactions-loading');
-        const accountsLoading = document.getElementById('accounts-loading');
-        const noTransactions = document.getElementById('no-transactions');
-        const noAccounts = document.getElementById('no-accounts');
-        const printPreview = document.getElementById('print-preview');
-        const printContent = document.getElementById('print-content');
-        const accountStatement = document.getElementById('account-statement');
-        const statementDebtorName = document.getElementById('statement-debtor-name');
-        const statementDebtorPhone = document.getElementById('statement-debtor-phone');
-        const statementDebtorBalance = document.getElementById('statement-debtor-balance');
-        const statementTransactions = document.getElementById('statement-transactions');
-        const advanceReceipt = document.getElementById('advance-receipt');
-        const advanceContent = document.getElementById('advance-content');
 
-        // Global variables
-        let allTransactions = [];
-        let allAccounts = [];
-        let filteredTransactions = [];
+        // Format number with thousands separators
+        function formatNumber(number) {
+            return new Intl.NumberFormat('ar-LY').format(number);
+        }
 
-        // Initialize the application
+        // Format date for display
+        function formatDate(dateString) {
+            const date = new Date(dateString);
+            return date.toLocaleDateString('ar-LY');
+        }
+
+        // Set today's date as default
+        function setDefaultDate() {
+            const today = new Date().toISOString().split('T')[0];
+            transactionDateEl.value = today;
+        }
+
+        // Initialize the app
         async function init() {
-            // Initialize Supabase client HERE, inside init()
-            supabase = window.supabase.createClient(supabaseUrl, supabaseKey);
-
-            updateLastUpdate();
-            await loadAccounts();
-            await loadTransactions();
-            setupEventListeners();
+            setDefaultDate();
+            await loadData();
+            updateDisplay();
+            renderTransactions();
+            renderAccounts();
+            updateDebtorSelects();
+            updateLastUpdateTime();
         }
 
-        // Update last update time
-        function updateLastUpdate() {
-            const now = new Date();
-            lastUpdate.textContent = `آخر تحديث: ${now.toLocaleTimeString('ar-EG')}`;
-        }
-
-        // Load all accounts from Supabase
-        async function loadAccounts() {
-            accountsLoading.style.display = 'block';
-            noAccounts.style.display = 'none';
-            
+        // Load data from Supabase
+        async function loadData() {
             try {
-                const { data, error } = await supabase
-                    .from('accounts')
-                    .select('*')
-                    .order('created_at', { ascending: false });
-
-                if (error) throw error;
-
-                allAccounts = data || [];
-                renderAccounts();
-                populateDebtorSelects();
-            } catch (error) {
-                console.error('Error loading accounts:', error);
-                alert('حدث خطأ أثناء تحميل الحسابات: ' + error.message);
-            } finally {
-                accountsLoading.style.display = 'none';
-            }
-        }
-
-        // Load all transactions from Supabase
-        async function loadTransactions() {
-            transactionsLoading.style.display = 'block';
-            noTransactions.style.display = 'none';
-            
-            try {
-                const { data, error } = await supabase
+                // Load transactions
+                const { data: transactionsData, error: transactionsError } = await supabase
                     .from('transactions')
                     .select('*')
                     .order('date', { ascending: false })
                     .order('created_at', { ascending: false });
 
-                if (error) throw error;
+                if (transactionsError) {
+                    showNotification('فشل تحميل الحركات المالية: ' + transactionsError.message, 'danger');
+                    return;
+                }
 
-                allTransactions = data || [];
-                filteredTransactions = [...allTransactions];
-                renderTransactions();
-                updateDashboardStats();
+                transactions = transactionsData || [];
+                filteredTransactions = [...transactions];
+                
+                // Load accounts
+                const { data: accountsData, error: accountsError } = await supabase
+                    .from('accounts')
+                    .select('*')
+                    .order('created_at', { ascending: false });
+
+                if (accountsError) {
+                    showNotification('فشل تحميل الحسابات: ' + accountsError.message, 'danger');
+                    return;
+                }
+
+                accounts = accountsData || [];
+                
+                // Calculate balance from transactions
+                const deposits = transactions
+                    .filter(t => t.type === 'deposit')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                const expenses = transactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                    
+                balance = deposits - expenses;
+                
             } catch (error) {
-                console.error('Error loading transactions:', error);
-                alert('حدث خطأ أثناء تحميل الحركات: ' + error.message);
-            } finally {
-                transactionsLoading.style.display = 'none';
+                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
             }
         }
 
-        // Render accounts in the table
-        function renderAccounts() {
-            accountsBody.innerHTML = '';
+        // Update display
+        function updateDisplay() {
+            currentBalanceEl.textContent = `${formatNumber(balance.toFixed(2))} د.ل`;
             
-            if (allAccounts.length === 0) {
-                noAccounts.style.display = 'block';
+            const totalDeposits = transactions
+                .filter(t => t.type === 'deposit')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                
+            const totalExpenses = transactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                
+            totalDepositsEl.textContent = `${formatNumber(totalDeposits.toFixed(2))} د.ل`;
+            totalExpensesEl.textContent = `${formatNumber(totalExpenses.toFixed(2))} د.ل`;
+            transactionCountEl.textContent = formatNumber(transactions.length);
+        }
+
+        // Show/hide debtor field based on transaction type
+        transactionTypeSelect.addEventListener('change', function() {
+            if (this.value === 'expense') {
+                debtorField.style.display = 'block';
+                debtorSelect.required = true;
+            } else {
+                debtorField.style.display = 'none';
+                debtorSelect.required = false;
+                debtorSelect.value = '';
+            }
+        });
+
+        // Add transaction
+        transactionForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const type = document.getElementById('transaction-type').value;
+            const amount = parseFloat(document.getElementById('amount').value);
+            const description = document.getElementById('description').value;
+            const transactionDate = document.getElementById('transaction-date').value;
+            const debtorId = type === 'expense' ? debtorSelect.value : null;
+            
+            if (!type || !amount || !description || !transactionDate || (type === 'expense' && !debtorId)) {
+                showNotification('يرجى ملء جميع الحقول المطلوبة', 'danger');
                 return;
             }
-
-            noAccounts.style.display = 'none';
-
-            allAccounts.forEach(account => {
-                const row = document.createElement('tr');
+            
+            const debtor = accounts.find(a => a.id === parseInt(debtorId));
+            
+            // Calculate balance after this transaction
+            const lastBalance = transactions.length > 0 ? 
+                parseFloat(transactions[0].balance_after) : 0;
+            const balanceAfter = type === 'deposit' ? 
+                lastBalance + amount : lastBalance - amount;
+            
+            const transaction = {
+                type,
+                amount,
+                date: transactionDate,
+                debtor_id: debtorId ? parseInt(debtorId) : null,
+                debtor_name: debtor ? debtor.name : null,
+                description,
+                balance_after: balanceAfter
+            };
+            
+            try {
+                // Save transaction to Supabase
+                const { data, error } = await supabase
+                    .from('transactions')
+                    .insert([transaction])
+                    .select();
                 
-                // Calculate number of transactions for this account
-                const accountTransactions = allTransactions.filter(t => t.debtor_id === account.id);
-                const transactionCount = accountTransactions.length;
+                if (error) {
+                    showNotification('فشل إضافة الحركة: ' + error.message, 'danger');
+                    return;
+                }
+                
+                // Update local data
+                const newTransaction = data[0];
+                transactions.unshift(newTransaction);
+                filteredTransactions = [...transactions];
+                
+                if (type === 'deposit') {
+                    balance += amount;
+                } else {
+                    balance -= amount;
+                    // Update debtor balance
+                    if (debtor) {
+                        const newBalance = parseFloat(debtor.balance) + amount;
+                        const { error: updateError } = await supabase
+                            .from('accounts')
+                            .update({ balance: newBalance })
+                            .eq('id', debtor.id);
+                            
+                        if (updateError) {
+                            showNotification('فشل تحديث رصيد الدائن: ' + updateError.message, 'warning');
+                        } else {
+                            debtor.balance = newBalance;
+                        }
+                    }
+                }
+                
+                updateDisplay();
+                renderTransactions();
+                renderAccounts();
+                transactionForm.reset();
+                setDefaultDate();
+                debtorField.style.display = 'none';
+                
+                // Show receipt option for expenses
+                if (type === 'expense' && debtor) {
+                    if (confirm('هل تود طباعة نموذج استلام السلفة الآن؟')) {
+                        showReceiptForm(newTransaction);
+                    }
+                }
+                
+                showNotification('تمت إضافة الحركة بنجاح', 'success');
+                updateLastUpdateTime();
+            } catch (error) {
+                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
+            }
+        });
 
-                row.innerHTML = `
-                    <td>${account.name}</td>
-                    <td>${account.phone || 'غير متوفر'}</td>
-                    <td>${parseFloat(account.balance).toFixed(2)} د.ل</td>
-                    <td>${transactionCount}</td>
-                    <td class="actions">
-                        <button onclick="viewAccountStatement(${account.id})" class="btn-success">كشف حساب</button>
-                        <button onclick="deleteAccount(${account.id})" class="btn-danger">حذف</button>
-                    </td>
-                `;
-                accountsBody.appendChild(row);
-            });
-        }
+        // Add account
+        accountForm.addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const name = document.getElementById('debtor-name').value.trim();
+            const phone = document.getElementById('debtor-phone').value.trim();
+            const notes = document.getElementById('debtor-notes').value.trim();
+            
+            if (!name) {
+                showNotification('يرجى إدخال اسم الدائن', 'danger');
+                return;
+            }
+            
+            // Check if account already exists
+            if (accounts.some(a => a.name === name)) {
+                showNotification('يوجد حساب بهذا الاسم بالفعل', 'danger');
+                return;
+            }
+            
+            const account = {
+                name,
+                phone: phone || null,
+                notes: notes || null,
+                balance: 0
+            };
+            
+            try {
+                // Save account to Supabase
+                const { data, error } = await supabase
+                    .from('accounts')
+                    .insert([account])
+                    .select();
+                
+                if (error) {
+                    showNotification('فشل إضافة الحساب: ' + error.message, 'danger');
+                    return;
+                }
+                
+                // Update local data
+                const newAccount = data[0];
+                accounts.push(newAccount);
+                renderAccounts();
+                updateDebtorSelects();
+                accountForm.reset();
+                showNotification('تمت إضافة الحساب بنجاح', 'success');
+                updateLastUpdateTime();
+            } catch (error) {
+                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
+            }
+        });
 
-        // Render transactions in the table
+        // Render transactions
         function renderTransactions() {
-            transactionsBody.innerHTML = '';
+            transactionList.innerHTML = '';
             
             if (filteredTransactions.length === 0) {
-                noTransactions.style.display = 'block';
+                noTransactionsEl.style.display = 'block';
                 return;
             }
-
-            noTransactions.style.display = 'none';
-
+            
+            noTransactionsEl.style.display = 'none';
+            
             filteredTransactions.forEach(transaction => {
                 const row = document.createElement('tr');
                 
                 // Find debtor name
                 let debtorName = 'غير محدد';
                 if (transaction.debtor_id) {
-                    const debtor = allAccounts.find(acc => acc.id === transaction.debtor_id);
+                    const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
                     debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
                 } else if (transaction.debtor_name) {
                     debtorName = transaction.debtor_name;
                 }
-
+                
                 row.innerHTML = `
                     <td>${formatDate(transaction.date)}</td>
-                    <td><span class="badge ${transaction.type === 'deposit' ? 'badge-deposit' : 'badge-expense'}">
-                        ${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}
-                    </span></td>
+                    <td>
+                        <span class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
+                            ${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}
+                        </span>
+                    </td>
                     <td>${transaction.description || 'بدون وصف'}</td>
                     <td>${debtorName}</td>
-                    <td>${parseFloat(transaction.amount).toFixed(2)} د.ل</td>
-                    <td>${parseFloat(transaction.balance_after).toFixed(2)} د.ل</td>
-                    <td class="actions">
-                        <button onclick="editTransaction(${transaction.id})" class="btn-warning">تعديل</button>
-                        <button onclick="deleteTransaction(${transaction.id})" class="btn-danger">حذف</button>
+                    <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
+                        ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل
+                    </td>
+                    <td>${formatNumber(parseFloat(transaction.balance_after).toFixed(2))} د.ل</td>
+                    <td class="no-print">
+                        <div class="action-buttons">
+                            ${transaction.type === 'expense' && transaction.debtor_id ? 
+                                `<button class="btn btn-sm btn-warning" onclick="showReceiptForm(${JSON.stringify(transaction).replace(/"/g, '&quot;')})" title="طباعة نموذج الاستلام">
+                                    <i class="bi bi-file-earmark-text"></i>
+                                </button>` : ''
+                            }
+                            <button class="btn btn-sm btn-danger" onclick="deleteTransaction(${transaction.id})" title="حذف">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
                     </td>
                 `;
-                transactionsBody.appendChild(row);
+                transactionList.appendChild(row);
             });
         }
 
-        // Populate debtor selects
-        function populateDebtorSelects() {
+        // Render accounts
+        function renderAccounts() {
+            accountsList.innerHTML = '';
+            
+            if (accounts.length === 0) {
+                noAccountsEl.style.display = 'block';
+                return;
+            }
+            
+            noAccountsEl.style.display = 'none';
+            
+            accounts.forEach(account => {
+                // Calculate number of transactions for this account
+                const accountTransactions = transactions.filter(t => t.debtor_id === account.id);
+                const transactionCount = accountTransactions.length;
+                
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${account.name}</td>
+                    <td>${account.phone || 'غير متوفر'}</td>
+                    <td class="${parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative'}">
+                        ${formatNumber(parseFloat(account.balance).toFixed(2))} د.ل
+                    </td>
+                    <td>${transactionCount}</td>
+                    <td class="no-print">
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-info" onclick="viewAccountStatement(${account.id})" title="كشف حساب">
+                                <i class="bi bi-file-earmark-text"></i>
+                            </button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteAccount(${account.id})" title="حذف">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                        </div>
+                    </td>
+                `;
+                accountsList.appendChild(row);
+            });
+        }
+
+        // Update debtor selects
+        function updateDebtorSelects() {
             // Clear existing options except the first one
             while (debtorSelect.options.length > 1) {
                 debtorSelect.remove(1);
@@ -746,7 +1242,7 @@
             }
 
             // Add accounts to selects
-            allAccounts.forEach(account => {
+            accounts.forEach(account => {
                 const option1 = document.createElement('option');
                 option1.value = account.id;
                 option1.textContent = account.name;
@@ -759,186 +1255,48 @@
             });
         }
 
-        // Update dashboard statistics
-        function updateDashboardStats() {
-            const deposits = allTransactions
-                .filter(t => t.type === 'deposit')
-                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+        // Update last update time
+        function updateLastUpdateTime() {
+            const now = new Date();
+            lastUpdateEl.textContent = now.toLocaleTimeString('ar-EG');
+        }
+
+        // Show notification
+        function showNotification(message, type = 'info') {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type} alert-dismissible fade show position-fixed`;
+            alertDiv.style.top = '20px';
+            alertDiv.style.left = '50%';
+            alertDiv.style.transform = 'translateX(-50%)';
+            alertDiv.style.zIndex = '9999';
+            alertDiv.style.minWidth = '300px';
+            alertDiv.innerHTML = `
+                ${message}
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            `;
+            document.body.appendChild(alertDiv);
             
-            const expenses = allTransactions
-                .filter(t => t.type === 'expense')
-                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
-            
-            const balance = deposits - expenses;
-            const count = allTransactions.length;
-
-            currentBalance.textContent = balance.toFixed(2);
-            totalDeposits.textContent = deposits.toFixed(2);
-            totalExpenses.textContent = expenses.toFixed(2);
-            totalTransactions.textContent = count;
-
-            // Update last update time
-            updateLastUpdate();
+            // Auto remove after 3 seconds
+            setTimeout(() => {
+                alertDiv.remove();
+            }, 3000);
         }
 
-        // Format date for display
-        function formatDate(dateString) {
-            const date = new Date(dateString);
-            return date.toLocaleDateString('ar-EG');
-        }
-
-        // Setup event listeners
-        function setupEventListeners() {
-            // Transaction form submission
-            transactionForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await addTransaction();
-            });
-
-            // Account form submission
-            accountForm.addEventListener('submit', async (e) => {
-                e.preventDefault();
-                await addAccount();
-            });
-
-            // Filter buttons
-            applyFilterBtn.addEventListener('click', applyFilters);
-            resetFilterBtn.addEventListener('click', resetFilters);
-            showExpensesOnlyBtn.addEventListener('click', () => showFilteredTransactions('expense'));
-            showDepositsOnlyBtn.addEventListener('click', () => showFilteredTransactions('deposit'));
-            showAllBtn.addEventListener('click', () => showFilteredTransactions('all'));
-
-            // Print buttons
-            printTransactionsBtn.addEventListener('click', () => printTransactions('all'));
-            previewPrintBtn.addEventListener('click', () => previewTransactions());
-            printSummaryBtn.addEventListener('click', printSummary);
-            printCurrentViewBtn.addEventListener('click', () => printTransactions('current'));
-
-            // Clear all transactions
-            clearAllTransactionsBtn.addEventListener('click', clearAllTransactions);
-        }
-
-        // Add a new transaction
-        async function addTransaction() {
-            const type = document.getElementById('transaction-type').value;
-            const amount = parseFloat(document.getElementById('amount').value);
-            const date = document.getElementById('transaction-date').value;
-            const debtorId = document.getElementById('debtor').value || null;
-            const description = document.getElementById('description').value.trim();
-
-            if (!type || !amount || !date) {
-                alert('يرجى ملء جميع الحقول المطلوبة');
-                return;
-            }
-
-            try {
-                // Calculate balance after this transaction
-                const lastBalance = allTransactions.length > 0 ? 
-                    parseFloat(allTransactions[0].balance_after) : 0;
-                const balanceAfter = type === 'deposit' ? 
-                    lastBalance + amount : lastBalance - amount;
-
-                // Get debtor name if debtor_id is provided
-                let debtorName = null;
-                if (debtorId) {
-                    const debtor = allAccounts.find(acc => acc.id == debtorId);
-                    debtorName = debtor ? debtor.name : null;
-                }
-
-                // Insert transaction into Supabase
-                const { data, error } = await supabase
-                    .from('transactions')
-                    .insert([
-                        {
-                            type,
-                            amount,
-                            date,
-                            debtor_id: debtorId,
-                            debtor_name: debtorName,
-                            description,
-                            balance_after: balanceAfter
-                        }
-                    ])
-                    .select();
-
-                if (error) throw error;
-
-                // Update local data and UI
-                const newTransaction = data[0];
-                allTransactions.unshift(newTransaction);
-                filteredTransactions = [...allTransactions];
-                renderTransactions();
-                updateDashboardStats();
-
-                // Reset form
-                transactionForm.reset();
-                document.getElementById('transaction-date').valueAsDate = new Date();
-
-                alert('تمت إضافة الحركة بنجاح');
-            } catch (error) {
-                console.error('Error adding transaction:', error);
-                alert('حدث خطأ أثناء إضافة الحركة: ' + error.message);
-            }
-        }
-
-        // Add a new account
-        async function addAccount() {
-            const name = document.getElementById('account-name').value.trim();
-            const phone = document.getElementById('account-phone').value.trim();
-            const notes = document.getElementById('account-notes').value.trim();
-
-            if (!name) {
-                alert('يرجى إدخال اسم الدائن');
-                return;
-            }
-
-            try {
-                // Insert account into Supabase
-                const { data, error } = await supabase
-                    .from('accounts')
-                    .insert([
-                        {
-                            name,
-                            phone: phone || null,
-                            notes: notes || null,
-                            balance: 0
-                        }
-                    ])
-                    .select();
-
-                if (error) throw error;
-
-                // Update local data and UI
-                const newAccount = data[0];
-                allAccounts.unshift(newAccount);
-                renderAccounts();
-                populateDebtorSelects();
-
-                // Reset form
-                accountForm.reset();
-
-                alert('تمت إضافة الحساب بنجاح');
-            } catch (error) {
-                console.error('Error adding account:', error);
-                alert('حدث خطأ أثناء إضافة الحساب: ' + error.message);
-            }
-        }
-
-        // Apply filters to transactions
+        // Apply filters
         function applyFilters() {
             const type = document.getElementById('filter-type').value;
             const debtorId = document.getElementById('filter-debtor').value;
-            const fromDate = document.getElementById('filter-from-date').value;
-            const toDate = document.getElementById('filter-to-date').value;
+            const fromDate = document.getElementById('filter-from').value;
+            const toDate = document.getElementById('filter-to').value;
 
-            filteredTransactions = allTransactions.filter(transaction => {
+            filteredTransactions = transactions.filter(transaction => {
                 // Filter by type
-                if (type !== 'all' && transaction.type !== type) {
+                if (type && transaction.type !== type) {
                     return false;
                 }
 
                 // Filter by debtor
-                if (debtorId !== 'all' && transaction.debtor_id != debtorId) {
+                if (debtorId && transaction.debtor_id != debtorId) {
                     return false;
                 }
 
@@ -956,62 +1314,33 @@
             renderTransactions();
         }
 
-        // Reset all filters
+        // Reset filters
         function resetFilters() {
-            document.getElementById('filter-type').value = 'all';
-            document.getElementById('filter-debtor').value = 'all';
-            document.getElementById('filter-from-date').value = '';
-            document.getElementById('filter-to-date').value = '';
+            document.getElementById('filter-type').value = '';
+            document.getElementById('filter-debtor').value = '';
+            document.getElementById('filter-from').value = '';
+            document.getElementById('filter-to').value = '';
 
-            filteredTransactions = [...allTransactions];
+            filteredTransactions = [...transactions];
             renderTransactions();
         }
 
-        // Show filtered transactions by type
-        function showFilteredTransactions(type) {
-            if (type === 'all') {
-                filteredTransactions = [...allTransactions];
-            } else {
-                filteredTransactions = allTransactions.filter(t => t.type === type);
-            }
+        // Show expenses only
+        function showExpensesOnly() {
+            filteredTransactions = transactions.filter(t => t.type === 'expense');
             renderTransactions();
         }
 
-        // View account statement
-        async function viewAccountStatement(accountId) {
-            const account = allAccounts.find(acc => acc.id === accountId);
-            if (!account) return;
-
-            statementDebtorName.textContent = account.name;
-            statementDebtorPhone.textContent = account.phone || 'غير متوفر';
-            statementDebtorBalance.textContent = parseFloat(account.balance).toFixed(2);
-
-            // Get transactions for this account
-            const accountTransactions = allTransactions.filter(t => t.debtor_id === accountId);
-            statementTransactions.innerHTML = '';
-
-            if (accountTransactions.length === 0) {
-                statementTransactions.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد حركات لهذا الدائن</td></tr>';
-            } else {
-                accountTransactions.forEach(transaction => {
-                    const row = document.createElement('tr');
-                    row.innerHTML = `
-                        <td>${formatDate(transaction.date)}</td>
-                        <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                        <td>${transaction.description || 'بدون وصف'}</td>
-                        <td>${parseFloat(transaction.amount).toFixed(2)} د.ل</td>
-                        <td>${parseFloat(transaction.balance_after).toFixed(2)} د.ل</td>
-                    `;
-                    statementTransactions.appendChild(row);
-                });
-            }
-
-            accountStatement.style.display = 'block';
+        // Show deposits only
+        function showDepositsOnly() {
+            filteredTransactions = transactions.filter(t => t.type === 'deposit');
+            renderTransactions();
         }
 
-        // Close account statement
-        function closeAccountStatement() {
-            accountStatement.style.display = 'none';
+        // Show all transactions
+        function showAllTransactions() {
+            filteredTransactions = [...transactions];
+            renderTransactions();
         }
 
         // Delete transaction
@@ -1021,24 +1350,56 @@
             }
 
             try {
+                // Get transaction details before deletion
+                const transaction = transactions.find(t => t.id === transactionId);
+                if (!transaction) return;
+
                 // Delete transaction from Supabase
                 const { error } = await supabase
                     .from('transactions')
                     .delete()
                     .eq('id', transactionId);
 
-                if (error) throw error;
+                if (error) {
+                    showNotification('فشل حذف الحركة: ' + error.message, 'danger');
+                    return;
+                }
 
-                // Update local data and UI
-                allTransactions = allTransactions.filter(t => t.id !== transactionId);
+                // Update local data
+                transactions = transactions.filter(t => t.id !== transactionId);
                 filteredTransactions = filteredTransactions.filter(t => t.id !== transactionId);
+                
+                // Update balance
+                if (transaction.type === 'deposit') {
+                    balance -= parseFloat(transaction.amount);
+                } else {
+                    balance += parseFloat(transaction.amount);
+                    
+                    // Update debtor balance if applicable
+                    if (transaction.debtor_id) {
+                        const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
+                        if (debtor) {
+                            const newBalance = parseFloat(debtor.balance) - parseFloat(transaction.amount);
+                            const { error: updateError } = await supabase
+                                .from('accounts')
+                                .update({ balance: newBalance })
+                                .eq('id', debtor.id);
+                                
+                            if (updateError) {
+                                showNotification('فشل تحديث رصيد الدائن: ' + updateError.message, 'warning');
+                            } else {
+                                debtor.balance = newBalance;
+                            }
+                        }
+                    }
+                }
+                
                 renderTransactions();
-                updateDashboardStats();
-
-                alert('تم حذف الحركة بنجاح');
+                renderAccounts();
+                updateDisplay();
+                showNotification('تم حذف الحركة بنجاح', 'success');
             } catch (error) {
-                console.error('Error deleting transaction:', error);
-                alert('حدث خطأ أثناء حذف الحركة: ' + error.message);
+                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
             }
         }
 
@@ -1055,7 +1416,10 @@
                     .delete()
                     .eq('debtor_id', accountId);
 
-                if (transactionsError) throw transactionsError;
+                if (transactionsError) {
+                    showNotification('فشل حذف حركات الحساب: ' + transactionsError.message, 'danger');
+                    return;
+                }
 
                 // Then, delete the account
                 const { error: accountError } = await supabase
@@ -1063,236 +1427,439 @@
                     .delete()
                     .eq('id', accountId);
 
-                if (accountError) throw accountError;
+                if (accountError) {
+                    showNotification('فشل حذف الحساب: ' + accountError.message, 'danger');
+                    return;
+                }
 
-                // Update local data and UI
-                allAccounts = allAccounts.filter(acc => acc.id !== accountId);
-                allTransactions = allTransactions.filter(t => t.debtor_id !== accountId);
+                // Update local data
+                const account = accounts.find(acc => acc.id === accountId);
+                accounts = accounts.filter(acc => acc.id !== accountId);
+                
+                // Remove transactions and update balance
+                const accountTransactions = transactions.filter(t => t.debtor_id === accountId);
+                transactions = transactions.filter(t => t.debtor_id !== accountId);
                 filteredTransactions = filteredTransactions.filter(t => t.debtor_id !== accountId);
+                
+                // Update balance
+                const accountExpenses = accountTransactions
+                    .filter(t => t.type === 'expense')
+                    .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+                balance += accountExpenses;
                 
                 renderAccounts();
                 renderTransactions();
-                populateDebtorSelects();
-                updateDashboardStats();
-
-                alert('تم حذف الحساب وجميع حركاته بنجاح');
+                updateDisplay();
+                updateDebtorSelects();
+                showNotification('تم حذف الحساب وجميع حركاته بنجاح', 'success');
             } catch (error) {
-                console.error('Error deleting account:', error);
-                alert('حدث خطأ أثناء حذف الحساب: ' + error.message);
+                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
             }
         }
 
-        // Edit transaction (placeholder - can be expanded)
-        function editTransaction(transactionId) {
-            alert('وظيفة التعديل لم تُنفذ بعد. سيتم إضافتها في التحديثات القادمة.');
-            // This function can be expanded to allow editing of transactions
-        }
+        // View account statement
+        async function viewAccountStatement(accountId) {
+            const account = accounts.find(acc => acc.id === accountId);
+            if (!account) return;
 
-        // Print transactions
-        function printTransactions(type) {
-            let transactionsToPrint;
-            let title = '';
+            currentStatementAccount = account;
+            
+            document.getElementById('statement-debtor-name').textContent = account.name;
+            document.getElementById('statement-debtor-phone').textContent = account.phone || 'غير متوفر';
+            
+            const balanceEl = document.getElementById('statement-balance');
+            balanceEl.textContent = `${formatNumber(parseFloat(account.balance).toFixed(2))} د.ل`;
+            balanceEl.className = parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative';
 
-            switch (type) {
-                case 'all':
-                    transactionsToPrint = allTransactions;
-                    title = 'سجل جميع الحركات المالية';
-                    break;
-                case 'current':
-                    transactionsToPrint = filteredTransactions;
-                    title = 'سجل الحركات المالية (العرض الحالي)';
-                    break;
-                default:
-                    transactionsToPrint = allTransactions;
-                    title = 'سجل الحركات المالية';
+            // Get transactions for this account
+            const accountTransactions = transactions.filter(t => t.debtor_id === accountId);
+            const statementTransactions = document.getElementById('statement-transactions');
+            statementTransactions.innerHTML = '';
+
+            if (accountTransactions.length === 0) {
+                statementTransactions.innerHTML = '<tr><td colspan="5" style="text-align: center;">لا توجد حركات لهذا الدائن</td></tr>';
+            } else {
+                // Sort transactions by date (newest first)
+                const sortedTransactions = [...accountTransactions].sort((a, b) => {
+                    return new Date(b.date) - new Date(a.date);
+                });
+                
+                sortedTransactions.forEach(transaction => {
+                    const row = document.createElement('tr');
+                    row.innerHTML = `
+                        <td>${formatDate(transaction.date)}</td>
+                        <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                        <td>${transaction.description || 'بدون وصف'}</td>
+                        <td class="${transaction.type === 'deposit' ? 'deposit' : 'expense'}">
+                            ${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل
+                        </td>
+                        <td>${formatNumber(parseFloat(transaction.balance_after).toFixed(2))} د.ل</td>
+                    `;
+                    statementTransactions.appendChild(row);
+                });
             }
 
-            let content = `
-                <h2 style="text-align: center; margin-bottom: 30px;">${title}</h2>
-                <table style="width: 100%; border-collapse: collapse; margin: 20px 0; direction: rtl;">
+            const modal = new bootstrap.Modal(document.getElementById('accountStatementModal'));
+            modal.show();
+        }
+
+        // Show receipt form
+        function showReceiptForm(transaction) {
+            currentReceiptTransaction = transaction;
+            
+            // Find debtor
+            let debtorName = 'غير محدد';
+            if (transaction.debtor_id) {
+                const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
+                debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
+            } else if (transaction.debtor_name) {
+                debtorName = transaction.debtor_name;
+            }
+            
+            const receiptContent = document.getElementById('receiptFormContent');
+            receiptContent.innerHTML = `
+                <div class="receipt-form">
+                    <div class="receipt-header">
+                        <div class="receipt-title">نموذج استلام سلفة</div>
+                        <div>تاريخ الاستلام: ${formatDate(transaction.date)}</div>
+                    </div>
+                    
+                    <div class="receipt-details">
+                        <div class="receipt-row">
+                            <div>اسم المستلم:</div>
+                            <div>${debtorName}</div>
+                        </div>
+                        <div class="receipt-row">
+                            <div>سبب الصرف:</div>
+                            <div>${transaction.description || 'بدون سبب'}</div>
+                        </div>
+                        <div class="receipt-amount">
+                            المبلغ: ${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل
+                        </div>
+                        <div class="receipt-row">
+                            <div>بالحروف:</div>
+                            <div>${numberToWords(parseFloat(transaction.amount))} دينار ليبي فقط</div>
+                        </div>
+                    </div>
+                    
+                    <div class="receipt-signature">
+                        <div class="signature-box">
+                            <div>توقيع المستلم</div>
+                            <div class="signature-line"></div>
+                            <div>${debtorName}</div>
+                        </div>
+                        <div class="signature-box">
+                            <div>توقيع الصراف</div>
+                            <div class="signature-line"></div>
+                            <div>...................</div>
+                        </div>
+                    </div>
+                    
+                    <div class="receipt-date">
+                        تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}
+                    </div>
+                </div>
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('receiptFormModal'));
+            modal.show();
+        }
+
+        // Convert number to words (Arabic)
+        function numberToWords(num) {
+            // Simplified implementation for Arabic numbers to words
+            // This is a basic implementation and might need enhancement for full coverage
+            const ones = ['', 'واحد', 'اثنان', 'ثلاثة', 'أربعة', 'خمسة', 'ستة', 'سبعة', 'ثمانية', 'تسعة'];
+            const tens = ['', '', 'عشرون', 'ثلاثون', 'أربعون', 'خمسون', 'ستون', 'سبعون', 'ثمانون', 'تسعون'];
+            const teens = ['عشرة', 'أحد عشر', 'اثنا عشر', 'ثلاثة عشر', 'أربعة عشر', 'خمسة عشر', 'ستة عشر', 'سبعة عشر', 'ثمانية عشر', 'تسعة عشر'];
+            const hundreds = ['', 'مئة', 'مئتان', 'ثلاثمئة', 'أربعمئة', 'خمسمئة', 'ستمئة', 'سبعمئة', 'ثمانمئة', 'تسعمئة'];
+            
+            if (num === 0) return 'صفر';
+            
+            let result = '';
+            
+            // Handle thousands
+            if (num >= 1000) {
+                const thousands = Math.floor(num / 1000);
+                result += numberToWords(thousands) + ' ألف ';
+                num %= 1000;
+            }
+            
+            // Handle hundreds
+            if (num >= 100) {
+                result += hundreds[Math.floor(num / 100)] + ' ';
+                num %= 100;
+            }
+            
+            // Handle tens and ones
+            if (num > 0) {
+                if (num < 10) {
+                    result += ones[num] + ' ';
+                } else if (num >= 11 && num <= 19) {
+                    result += teens[num - 10] + ' ';
+                } else {
+                    const ten = Math.floor(num / 10);
+                    const one = num % 10;
+                    if (one > 0) {
+                        result += ones[one] + ' و ';
+                    }
+                    result += tens[ten] + ' ';
+                }
+            }
+            
+            return result.trim();
+        }
+
+        // Print functions
+        function printTransactions() {
+            window.print();
+        }
+
+        function printPreview() {
+            const printContent = document.getElementById('printPreviewContent');
+            printContent.innerHTML = `
+                <div class="print-header">
+                    <h2>سجل الحركات المالية</h2>
+                    <p>تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}</p>
+                </div>
+                
+                <table class="table table-bordered">
                     <thead>
-                        <tr style="background: #2c3e50; color: white;">
-                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">التاريخ</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">النوع</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">الوصف</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">الدائن</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">المبلغ</th>
-                            <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">الرصيد بعد الحركة</th>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>النوع</th>
+                            <th>الوصف</th>
+                            <th>الدائن</th>
+                            <th>المبلغ</th>
+                            <th>الرصيد بعد الحركة</th>
                         </tr>
                     </thead>
                     <tbody>
-            `;
-
-            transactionsToPrint.forEach(transaction => {
-                let debtorName = 'غير محدد';
-                if (transaction.debtor_id) {
-                    const debtor = allAccounts.find(acc => acc.id === transaction.debtor_id);
-                    debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
-                } else if (transaction.debtor_name) {
-                    debtorName = transaction.debtor_name;
-                }
-
-                content += `
-                    <tr style="background: ${transaction.type === 'deposit' ? '#d4edda' : '#f8d7da'};">
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${formatDate(transaction.date)}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${transaction.description || 'بدون وصف'}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${debtorName}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${parseFloat(transaction.amount).toFixed(2)} د.ل</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${parseFloat(transaction.balance_after).toFixed(2)} د.ل</td>
-                    </tr>
-                `;
-            });
-
-            content += `
+                        ${filteredTransactions.map(transaction => {
+                            let debtorName = 'غير محدد';
+                            if (transaction.debtor_id) {
+                                const debtor = accounts.find(acc => acc.id === transaction.debtor_id);
+                                debtorName = debtor ? debtor.name : transaction.debtor_name || 'غير محدد';
+                            } else if (transaction.debtor_name) {
+                                debtorName = transaction.debtor_name;
+                            }
+                            
+                            return `
+                                <tr>
+                                    <td>${formatDate(transaction.date)}</td>
+                                    <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                    <td>${transaction.description || 'بدون وصف'}</td>
+                                    <td>${debtorName}</td>
+                                    <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل</td>
+                                    <td>${formatNumber(parseFloat(transaction.balance_after).toFixed(2))} د.ل</td>
+                                </tr>
+                            `;
+                        }).join('')}
                     </tbody>
                 </table>
-                <div style="margin-top: 30px; text-align: center; font-weight: bold;">
-                    <p>إجمالي الإيداعات: ${totalDeposits.textContent} د.ل</p>
-                    <p>إجمالي المصروفات: ${totalExpenses.textContent} د.ل</p>
-                    <p>الرصيد الحالي: ${currentBalance.textContent} د.ل</p>
-                    <p>عدد الحركات: ${totalTransactions.textContent}</p>
-                </div>
-            `;
-
-            printContent.innerHTML = content;
-            printPreview.style.display = 'block';
-        }
-
-        // Preview transactions
-        function previewTransactions() {
-            printTransactions('all');
-        }
-
-        // Print summary
-        function printSummary() {
-            const content = `
-                <h2 style="text-align: center; margin-bottom: 30px;">ملخص الحساب</h2>
-                <div style="margin: 30px; padding: 20px; background: #f8f9fa; border-radius: 8px; direction: rtl;">
-                    <h3 style="margin-bottom: 20px; color: #2c3e50;">الإحصائيات العامة</h3>
-                    <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 20px; margin-bottom: 30px;">
-                        <div style="background: #2c3e50; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-                            <h4>الرصيد الحالي</h4>
-                            <p style="font-size: 1.5rem; font-weight: bold;">${currentBalance.textContent} د.ل</p>
+                
+                <div class="print-summary">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>الرصيد الحالي:</strong> ${currentBalanceEl.textContent}
                         </div>
-                        <div style="background: #27ae60; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-                            <h4>إجمالي الإيداعات</h4>
-                            <p style="font-size: 1.5rem; font-weight: bold;">${totalDeposits.textContent} د.ل</p>
+                        <div class="col-md-3">
+                            <strong>إجمالي الإيداعات:</strong> ${totalDepositsEl.textContent}
                         </div>
-                        <div style="background: #e74c3c; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-                            <h4>إجمالي المصروفات</h4>
-                            <p style="font-size: 1.5rem; font-weight: bold;">${totalExpenses.textContent} د.ل</p>
+                        <div class="col-md-3">
+                            <strong>إجمالي المصروفات:</strong> ${totalExpensesEl.textContent}
                         </div>
-                        <div style="background: #3498db; color: white; padding: 20px; border-radius: 8px; text-align: center;">
-                            <h4>عدد الحركات</h4>
-                            <p style="font-size: 1.5rem; font-weight: bold;">${totalTransactions.textContent}</p>
+                        <div class="col-md-3">
+                            <strong>عدد الحركات:</strong> ${transactionCountEl.textContent}
                         </div>
                     </div>
-
-                    <h3 style="margin-bottom: 20px; color: #2c3e50;">آخر 10 حركات</h3>
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; direction: rtl;">
-                        <thead>
-                            <tr style="background: #2c3e50; color: white;">
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">التاريخ</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">النوع</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">الوصف</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">المبلغ</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            const recentTransactions = allTransactions.slice(0, 10);
-            recentTransactions.forEach(transaction => {
-                content += `
-                    <tr style="background: ${transaction.type === 'deposit' ? '#d4edda' : '#f8d7da'};">
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${formatDate(transaction.date)}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${transaction.description || 'بدون وصف'}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${parseFloat(transaction.amount).toFixed(2)} د.ل</td>
-                    </tr>
-                `;
-            });
-
-            content += `
-                        </tbody>
-                    </table>
-
-                    <h3 style="margin-bottom: 20px; color: #2c3e50; margin-top: 40px;">ملخص الدائنين</h3>
-                    <table style="width: 100%; border-collapse: collapse; margin: 20px 0; direction: rtl;">
-                        <thead>
-                            <tr style="background: #2c3e50; color: white;">
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">اسم الدائن</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">الرصيد</th>
-                                <th style="padding: 12px; text-align: right; border: 1px solid #ddd;">عدد الحركات</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-            `;
-
-            allAccounts.forEach(account => {
-                const accountTransactions = allTransactions.filter(t => t.debtor_id === account.id);
-                const transactionCount = accountTransactions.length;
-                const accountBalance = parseFloat(account.balance).toFixed(2);
-
-                content += `
-                    <tr>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${account.name}</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${accountBalance} د.ل</td>
-                        <td style="padding: 12px; text-align: right; border: 1px solid #ddd;">${transactionCount}</td>
-                    </tr>
-                `;
-            });
-
-            content += `
-                        </tbody>
-                    </table>
+                </div>
+                
+                <div class="print-footer">
+                    نظام إدارة الرصيد - جميع الحقوق محفوظة
                 </div>
             `;
-
-            printContent.innerHTML = content;
-            printPreview.style.display = 'block';
+            
+            const modal = new bootstrap.Modal(document.getElementById('printPreviewModal'));
+            modal.show();
         }
 
-        // Close print preview
-        function closePrintPreview() {
-            printPreview.style.display = 'none';
+        function printFromPreview() {
+            window.print();
         }
 
-        // Close advance receipt
-        function closeAdvanceReceipt() {
-            advanceReceipt.style.display = 'none';
+        function printSummary() {
+            const printContent = document.getElementById('printPreviewContent');
+            printContent.innerHTML = `
+                <div class="print-header">
+                    <h2>ملخص الحساب</h2>
+                    <p>تاريخ الطباعة: ${formatDate(new Date().toISOString().split('T')[0])}</p>
+                </div>
+                
+                <div class="print-summary">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <strong>الرصيد الحالي:</strong> ${currentBalanceEl.textContent}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>إجمالي الإيداعات:</strong> ${totalDepositsEl.textContent}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>إجمالي المصروفات:</strong> ${totalExpensesEl.textContent}
+                        </div>
+                        <div class="col-md-3">
+                            <strong>عدد الحركات:</strong> ${transactionCountEl.textContent}
+                        </div>
+                    </div>
+                </div>
+                
+                <h3 class="mt-4">آخر 10 حركات</h3>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>التاريخ</th>
+                            <th>النوع</th>
+                            <th>الوصف</th>
+                            <th>المبلغ</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${transactions.slice(0, 10).map(transaction => `
+                            <tr>
+                                <td>${formatDate(transaction.date)}</td>
+                                <td>${transaction.type === 'deposit' ? 'إيداع' : 'مصروف'}</td>
+                                <td>${transaction.description || 'بدون وصف'}</td>
+                                <td>${transaction.type === 'deposit' ? '+' : '-'}${formatNumber(parseFloat(transaction.amount).toFixed(2))} د.ل</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <h3 class="mt-4">ملخص الدائنين</h3>
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>اسم الدائن</th>
+                            <th>الرصيد</th>
+                            <th>عدد الحركات</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${accounts.map(account => `
+                            <tr>
+                                <td>${account.name}</td>
+                                <td class="${parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative'}">
+                                    ${formatNumber(parseFloat(account.balance).toFixed(2))} د.ل
+                                </td>
+                                <td>${transactions.filter(t => t.debtor_id === account.id).length}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+                
+                <div class="print-footer">
+                    نظام إدارة الرصيد - جميع الحقوق محفوظة
+                </div>
+            `;
+            
+            const modal = new bootstrap.Modal(document.getElementById('printPreviewModal'));
+            modal.show();
         }
 
-        // Clear all transactions
-        async function clearAllTransactions() {
-            if (!confirm('هل أنت متأكد أنك تريد مسح جميع الحركات؟ هذه العملية لا يمكن التراجع عنها.')) {
+        function printCurrentView() {
+            printPreview();
+        }
+
+        function printAccountStatement() {
+            window.print();
+        }
+
+        function printReceiptForm() {
+            window.print();
+        }
+
+        // Clear all data
+        async function clearAllData() {
+            if (!confirm('هل أنت متأكد أنك تريد حذف جميع البيانات؟ هذا الإجراء لا يمكن التراجع عنه.')) {
                 return;
             }
 
             try {
-                // Delete all transactions from Supabase
-                const { error } = await supabase
+                // Delete all transactions
+                const { error: transactionsError } = await supabase
                     .from('transactions')
                     .delete()
-                    .not('id', 'is', null); // Delete all records
+                    .neq('id', 0);  // This deletes all rows
 
-                if (error) throw error;
+                if (transactionsError) {
+                    showNotification('فشل حذف الحركات: ' + transactionsError.message, 'danger');
+                    return;
+                }
 
-                // Update local data and UI
-                allTransactions = [];
+                // Delete all accounts
+                const { error: accountsError } = await supabase
+                    .from('accounts')
+                    .delete()
+                    .neq('id', 0);  // This deletes all rows
+
+                if (accountsError) {
+                    showNotification('فشل حذف الحسابات: ' + accountsError.message, 'danger');
+                    return;
+                }
+
+                // Reset local data
+                transactions = [];
+                accounts = [];
                 filteredTransactions = [];
+                balance = 0;
+                
                 renderTransactions();
-                updateDashboardStats();
-
-                alert('تم مسح جميع الحركات بنجاح');
+                renderAccounts();
+                updateDisplay();
+                updateDebtorSelects();
+                showNotification('تم حذف جميع البيانات بنجاح', 'success');
             } catch (error) {
-                console.error('Error clearing all transactions:', error);
-                alert('حدث خطأ أثناء مسح الحركات: ' + error.message);
+                showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
             }
         }
 
-        // Initialize the application when the page loads
+        // Export data
+        function exportData() {
+            const data = {
+                transactions,
+                accounts,
+                balance,
+                exportDate: new Date().toISOString()
+            };
+            
+            const dataStr = JSON.stringify(data, null, 2);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            
+            const exportFileDefaultName = `balance-system-export-${new Date().toISOString().split('T')[0]}.json`;
+            
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        // Refresh data
+        async function refreshData() {
+            const refreshBtn = document.querySelector('.refresh-btn');
+            refreshBtn.classList.add('spinning');
+            
+            await loadData();
+            updateDisplay();
+            renderTransactions();
+            renderAccounts();
+            updateDebtorSelects();
+            updateLastUpdateTime();
+            
+            refreshBtn.classList.remove('spinning');
+            showNotification('تم تحديث البيانات بنجاح', 'success');
+        }
+
+        // Initialize the app when the page loads
         document.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
