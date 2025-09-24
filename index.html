@@ -707,9 +707,11 @@
                                 <input type="tel" class="form-control" id="debtor-phone" placeholder="أدخل رقم الهاتف">
                             </div>
                         </div>
-                        <div class="col-md-12 mb-3">
-                            <label for="debtor-notes" class="form-label">ملاحظات</label>
-                            <textarea class="form-control" id="debtor-notes" rows="2" placeholder="أي ملاحظات إضافية"></textarea>
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="debtor-notes" class="form-label">ملاحظات</label>
+                                <textarea class="form-control" id="debtor-notes" rows="2" placeholder="أي ملاحظات إضافية"></textarea>
+                            </div>
                         </div>
                         <div class="row">
                             <div class="col-12">
@@ -957,46 +959,24 @@
                 debtorSelect.value = '';
             }
         });
-        // Add transaction — ✅ تم تعديل هذه الدالة بالكامل
+        // Add transaction
         transactionForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const type = document.getElementById('transaction-type').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const description = document.getElementById('description').value;
             const transactionDate = document.getElementById('transaction-date').value;
-            const debtorId = debtorSelect.value;
-            if (!type || !amount || !description || !transactionDate || !debtorId) {
+            const debtorId = debtorSelect.value; // تم التعديل هنا
+            if (!type || !amount || !description || !transactionDate || !debtorId) { // تم التعديل هنا
                 showNotification('يرجى ملء جميع الحقول المطلوبة', 'danger');
                 return;
             }
             const debtor = accounts.find(a => a.id === parseInt(debtorId));
-
-            // --- ✅ الحل: حساب الرصيد بناءً على جميع الحركات السابقة حتى تاريخ هذه الحركة ---
-            let currentBalance = 0;
-
-            // فلترة الحركات التي تسبق تاريخ هذه الحركة (أو في نفس اليوم، ونعتبرها سابقة)
-            const previousTransactions = transactions.filter(t => {
-                const tDate = new Date(t.date);
-                const newDate = new Date(transactionDate);
-                if (tDate < newDate) return true;
-                if (tDate > newDate) return false;
-                // إذا كان التاريخ نفسه، نعتبرها سابقة (لأن هذه الحركة لم تُحفظ بعد)
-                return true;
-            });
-
-            // حساب الرصيد التراكمي من الحركات السابقة
-            previousTransactions.forEach(t => {
-                if (t.type === 'deposit') {
-                    currentBalance += parseFloat(t.amount);
-                } else {
-                    currentBalance -= parseFloat(t.amount);
-                }
-            });
-
-            // حساب الرصيد بعد هذه الحركة
+            // Calculate balance after this transaction
+            const lastBalance = transactions.length > 0 ? 
+                parseFloat(transactions[transactions.length - 1].balance_after) : 0;
             const balanceAfter = type === 'deposit' ? 
-                currentBalance + amount : currentBalance - amount;
-
+                lastBalance + amount : lastBalance - amount;
             const transaction = {
                 type,
                 amount,
@@ -1006,7 +986,6 @@
                 description,
                 balance_after: balanceAfter
             };
-
             try {
                 // Save transaction to Supabase
                 const { data, error } = await supabase
@@ -1070,7 +1049,6 @@
                 showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
             }
         });
-
         // Add account
         accountForm.addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -1165,7 +1143,7 @@
                 transactionList.appendChild(row);
             });
         }
-        // Render accounts
+        // Render accounts — ✅ تم التعديل هنا لإضافة علامات + و -
         function renderAccounts() {
             accountsList.innerHTML = '';
             if (accounts.length === 0) {
@@ -1177,12 +1155,20 @@
                 // Calculate number of transactions for this account
                 const accountTransactions = transactions.filter(t => t.debtor_id === account.id);
                 const transactionCount = accountTransactions.length;
+                const balanceValue = parseFloat(account.balance);
+                // Format balance with explicit + or -
+                let formattedBalance;
+                if (balanceValue >= 0) {
+                    formattedBalance = `+${formatNumber(balanceValue)} د.ل`;
+                } else {
+                    formattedBalance = `${formatNumber(balanceValue)} د.ل`; // negative numbers already have -
+                }
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${account.name}</td>
                     <td>${account.phone || 'غير متوفر'}</td>
-                    <td class="${parseFloat(account.balance) > 0 ? 'account-balance positive' : 'account-balance negative'}">
-                        ${formatNumber(parseFloat(account.balance))} د.ل
+                    <td class="${balanceValue > 0 ? 'account-balance positive' : 'account-balance negative'}">
+                        ${formattedBalance}
                     </td>
                     <td>${transactionCount}</td>
                     <td class="no-print">
@@ -1896,12 +1882,20 @@
         function printCurrentView() {
             printTransactions();
         }
+        // Print account statement — ✅ تم التعديل هنا لإضافة الإجماليات
         function printAccountStatement() {
             const printWindow = window.open('', '_blank');
             const accountTransactions = transactions.filter(t => t.debtor_id === currentStatementAccount.id);
             const sortedTransactions = [...accountTransactions].sort((a, b) => {
                 return new Date(a.date) - new Date(b.date);
             });
+            // Calculate totals for this account
+            const totalDepositsForAccount = accountTransactions
+                .filter(t => t.type === 'deposit')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
+            const totalExpensesForAccount = accountTransactions
+                .filter(t => t.type === 'expense')
+                .reduce((sum, t) => sum + parseFloat(t.amount), 0);
             // Start cumulative balance from 0 (as requested)
             let cumulativeBalance = 0;
             printWindow.document.write(`
@@ -1949,6 +1943,21 @@
                             font-size: 12px;
                             color: #666;
                         }
+                        .totals-section {
+                            margin-top: 20px;
+                            padding: 15px;
+                            border: 1px solid #ddd;
+                            border-radius: 5px;
+                            background-color: #f8f9fa;
+                        }
+                        .totals-row {
+                            display: flex;
+                            justify-content: space-between;
+                            margin: 8px 0;
+                        }
+                        .totals-label {
+                            font-weight: bold;
+                        }
                     </style>
                 </head>
                 <body>
@@ -1991,6 +2000,17 @@
                             }).join('')}
                         </tbody>
                     </table>
+                    <!-- ✅ Added totals section -->
+                    <div class="totals-section">
+                        <div class="totals-row">
+                            <span class="totals-label">إجمالي الإيداعات:</span>
+                            <span>+${formatNumber(totalDepositsForAccount)} د.ل</span>
+                        </div>
+                        <div class="totals-row">
+                            <span class="totals-label">إجمالي المصروفات:</span>
+                            <span>-${formatNumber(totalExpensesForAccount)} د.ل</span>
+                        </div>
+                    </div>
                     <div class="print-footer">
                         نظام إدارة الرصيد - جميع الحقوق محفوظة
                     </div>
