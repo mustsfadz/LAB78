@@ -707,11 +707,9 @@
                                 <input type="tel" class="form-control" id="debtor-phone" placeholder="أدخل رقم الهاتف">
                             </div>
                         </div>
-                        <div class="row">
-                            <div class="col-md-12 mb-3">
-                                <label for="debtor-notes" class="form-label">ملاحظات</label>
-                                <textarea class="form-control" id="debtor-notes" rows="2" placeholder="أي ملاحظات إضافية"></textarea>
-                            </div>
+                        <div class="col-md-12 mb-3">
+                            <label for="debtor-notes" class="form-label">ملاحظات</label>
+                            <textarea class="form-control" id="debtor-notes" rows="2" placeholder="أي ملاحظات إضافية"></textarea>
                         </div>
                         <div class="row">
                             <div class="col-12">
@@ -959,24 +957,46 @@
                 debtorSelect.value = '';
             }
         });
-        // Add transaction
+        // Add transaction — ✅ تم تعديل هذه الدالة بالكامل
         transactionForm.addEventListener('submit', async function(e) {
             e.preventDefault();
             const type = document.getElementById('transaction-type').value;
             const amount = parseFloat(document.getElementById('amount').value);
             const description = document.getElementById('description').value;
             const transactionDate = document.getElementById('transaction-date').value;
-            const debtorId = debtorSelect.value; // تم التعديل هنا
-            if (!type || !amount || !description || !transactionDate || !debtorId) { // تم التعديل هنا
+            const debtorId = debtorSelect.value;
+            if (!type || !amount || !description || !transactionDate || !debtorId) {
                 showNotification('يرجى ملء جميع الحقول المطلوبة', 'danger');
                 return;
             }
             const debtor = accounts.find(a => a.id === parseInt(debtorId));
-            // Calculate balance after this transaction
-            const lastBalance = transactions.length > 0 ? 
-                parseFloat(transactions[transactions.length - 1].balance_after) : 0;
+
+            // --- ✅ الحل: حساب الرصيد بناءً على جميع الحركات السابقة حتى تاريخ هذه الحركة ---
+            let currentBalance = 0;
+
+            // فلترة الحركات التي تسبق تاريخ هذه الحركة (أو في نفس اليوم، ونعتبرها سابقة)
+            const previousTransactions = transactions.filter(t => {
+                const tDate = new Date(t.date);
+                const newDate = new Date(transactionDate);
+                if (tDate < newDate) return true;
+                if (tDate > newDate) return false;
+                // إذا كان التاريخ نفسه، نعتبرها سابقة (لأن هذه الحركة لم تُحفظ بعد)
+                return true;
+            });
+
+            // حساب الرصيد التراكمي من الحركات السابقة
+            previousTransactions.forEach(t => {
+                if (t.type === 'deposit') {
+                    currentBalance += parseFloat(t.amount);
+                } else {
+                    currentBalance -= parseFloat(t.amount);
+                }
+            });
+
+            // حساب الرصيد بعد هذه الحركة
             const balanceAfter = type === 'deposit' ? 
-                lastBalance + amount : lastBalance - amount;
+                currentBalance + amount : currentBalance - amount;
+
             const transaction = {
                 type,
                 amount,
@@ -986,6 +1006,7 @@
                 description,
                 balance_after: balanceAfter
             };
+
             try {
                 // Save transaction to Supabase
                 const { data, error } = await supabase
@@ -1049,6 +1070,7 @@
                 showNotification('خطأ في الاتصال بالخادم: ' + error.message, 'danger');
             }
         });
+
         // Add account
         accountForm.addEventListener('submit', async function(e) {
             e.preventDefault();
